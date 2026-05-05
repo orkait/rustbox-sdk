@@ -49,9 +49,9 @@ Always use a constant-time compare. Reject on mismatch with `401`.
 
 ## Retry behaviour
 
-- Rustbox waits up to `RUSTBOX_WEBHOOK_TIMEOUT_SECS` (default 10s) for a 2xx response.
-- Non-2xx or timeout marks the webhook as `degraded` after repeated failures.
-- After `recent_failures` crosses the disable threshold, the webhook flips to `disabled` until the operator re-enables it from the dashboard.
+- Rustbox waits up to 10s for a 2xx response.
+- Non-2xx or timeout marks the webhook `degraded` after repeated failures.
+- Repeated failures flip the webhook to `disabled`. Re-enable from the dashboard.
 
 ## SDK usage
 

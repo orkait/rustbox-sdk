@@ -73,27 +73,23 @@ Every result has a `verdict` field. What each one means and whether to retry:
 | `FSE` | File size limit exceeded - wrote too much to disk | no |
 | `IE` | Internal error - sandbox failure on our side | yes, with backoff |
 
-## 📏 Default limits
+## 📏 Limits
 
-| Limit | Default | Override (admin) |
+| Limit | Value |
+|---|---|
+| Code size | 64 KB |
+| Stdin size | 256 KB |
+| Sync wait timeout | 30s (SDK polls beyond this) |
+| Webhook delivery timeout | 10s |
+
+## 🚦 Rate limits
+
+| Profile | Per minute | Per day |
 |---|---|---|
-| Code size | 64 KB | `RUSTBOX_MAX_CODE_BYTES` |
-| Stdin size | 256 KB | `RUSTBOX_MAX_STDIN_BYTES` |
-| Sync wait timeout | 30s | `RUSTBOX_SYNC_WAIT_TIMEOUT_SECS` |
-| Webhook delivery timeout | 10s | `RUSTBOX_WEBHOOK_TIMEOUT_SECS` |
-| Webhook secret length | 256 bytes | hard limit |
+| Judge | 60 | 1,000 |
+| Agent | 1 | 20 |
 
-Per-key limits (rate limit, monthly trial, daily egress for Agent profile) are configured per account.
-
-## 🚦 Rate limits (defaults)
-
-| Caller | Per minute | Per day / hour |
-|---|---|---|
-| Anonymous (no API key, public playground) | 5 | 30 / hour |
-| Authenticated Judge | 60 | 1,000 / day |
-| Authenticated Agent | 1 | 20 / day |
-
-Test API keys bypass rate limits. Operators can override via `RUSTBOX_*_RPM` / `_RPD` env.
+Hit a 429? Back off and retry; the SDK does this automatically up to 3 attempts. Need higher limits? See your account dashboard.
 
 ## 🔒 Error handling
 
