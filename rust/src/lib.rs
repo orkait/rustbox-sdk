@@ -42,7 +42,7 @@ pub enum Profile {
     Agent,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, Default)]
 pub struct SubmitRequest {
     pub language: String,
     pub code: String,

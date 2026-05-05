@@ -64,15 +64,36 @@ except RustboxError:           pass  # other
 <details>
 <summary><strong>🧰 Full API</strong></summary>
 
-| Method | Returns | Notes |
-|---|---|---|
-| `Rustbox(api_key, base_url=DEFAULT_BASE_URL)` | `Rustbox` | empty `base_url` raises `ValueError` |
-| `await client.run(language, code, stdin="")` | `dict` | Submit + wait + auto-poll |
-| `await client.submit(language, code, stdin="", wait=False)` | `dict` | Low-level, no polling |
-| `await client.get_result(job_id)` | `dict` | Poll a job by id |
-| `await client.get_languages()` | `list[str]` | Available runtimes |
-| `await client.get_health()` | `dict` | Service health |
-| `await client.get_ready()` | `dict` | K8s-style readiness |
+```python
+Rustbox(
+    api_key: str,
+    base_url: str = DEFAULT_BASE_URL,
+    *,
+    timeout_secs: float = 65.0,
+    max_retries: int = 2,
+)
+
+await client.run(
+    language: str,
+    code: str,
+    stdin: str = "",
+    profile: Literal["judge", "agent"] | None = None,
+)  # -> dict
+
+await client.submit(
+    language, code, stdin="",
+    profile=None, wait=False,
+    idempotency_key=None,
+    webhook_url=None,
+    webhook_secret=None,
+)  # -> dict
+
+await client.get_result(job_id)    # -> dict
+await client.get_languages()       # -> list[str]
+await client.get_health()          # -> dict
+await client.get_ready()           # -> dict
+await client.aclose()              # close httpx connection pool
+```
 
 </details>
 

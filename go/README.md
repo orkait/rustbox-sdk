@@ -53,37 +53,50 @@ client.Run(rustbox.SubmitRequest{
 })
 ```
 
-## ⚠️ Errors
+## 🔒 Errors
 
-Today the Go SDK returns generic errors:
+Sentinel errors. Use `errors.Is` to discriminate:
 
 ```go
-result, err := client.Run(req)
-// err.Error() looks like "API Error: 401" or transport error
-```
+import "errors"
 
-Typed sentinels (`ErrAuth`, `ErrRateLimit`, `ErrServer`) are planned. See [`../ROADMAP.md`](../ROADMAP.md). For now, treat any non-2xx as transient and back off.
+result, err := client.Run(req)
+switch {
+case errors.Is(err, rustbox.ErrAuth):      // 401/403
+case errors.Is(err, rustbox.ErrRateLimit): // 429
+case errors.Is(err, rustbox.ErrServer):    // 5xx (SDK already retried)
+case errors.Is(err, rustbox.ErrTimeout):   // request exceeded timeout
+}
+```
 
 <details>
 <summary><strong>🧰 Full API</strong></summary>
 
-| Method | Returns | Notes |
-|---|---|---|
-| `rustbox.New(apiKey, opts ...Option)` | `*Client` | empty `apiKey` panics |
-| `WithBaseURL(url)` | `Option` | override default URL |
-| `WithHTTPClient(h)` | `Option` | inject custom `*http.Client` |
-| `client.Run(req)` | `(map[string]any, error)` | Submit + wait + auto-poll |
-| `client.Submit(req, wait)` | `(map[string]any, error)` | Low-level, no polling |
-| `client.GetResult(id)` | `(map[string]any, error)` | Poll a job by id |
-| `client.GetLanguages()` | `([]string, error)` | Available runtimes |
-| `client.GetHealth()` | `(map[string]any, error)` | Service health |
-| `client.GetReady()` | `(map[string]any, error)` | K8s-style readiness |
+| Method | Returns |
+|---|---|
+| `rustbox.New(apiKey, opts ...Option)` | `*Client` (empty `apiKey` panics) |
+| `WithBaseURL(url)` | `Option` |
+| `WithHTTPClient(h)` | `Option` |
+| `WithMaxRetries(n)` | `Option` |
+| `client.Run(req)` | `(map[string]any, error)` |
+| `client.Submit(req, wait, opts...)` | `(map[string]any, error)` |
+| `client.GetResult(id)` | `(map[string]any, error)` |
+| `client.GetLanguages()` | `([]string, error)` |
+| `client.GetHealth()` | `(map[string]any, error)` |
+| `client.GetReady()` | `(map[string]any, error)` |
 
 ```go
 type SubmitRequest struct {
-    Language string `json:"language"`
-    Code     string `json:"code"`
-    Stdin    string `json:"stdin"`
+    Language      string `json:"language"`
+    Code          string `json:"code"`
+    Stdin         string `json:"stdin"`
+    Profile       string `json:"profile,omitempty"`        // ProfileJudge | ProfileAgent
+    WebhookURL    string `json:"webhook_url,omitempty"`
+    WebhookSecret string `json:"webhook_secret,omitempty"`
+}
+
+type SubmitOptions struct {
+    IdempotencyKey string  // Idempotency-Key header; safe to retry POST when set
 }
 ```
 

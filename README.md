@@ -25,26 +25,38 @@ One-line client. One method (`run`) for the 95% case.
 
 ```python
 # Python
-result = await Rustbox(api_key).run(language="python", code="print(1)")
+client = Rustbox(api_key)
+result = await client.run(language="python", code="print(1)")
 print(result["verdict"])  # AC
 ```
 
 ```typescript
 // TypeScript
-const result = await new Rustbox(apiKey).run({ language: "python", code: "print(1)" });
+const client = new Rustbox(apiKey);
+const result = await client.run({
+  language: "python",
+  code: "print(1)",
+});
 console.log(result.verdict);  // AC
 ```
 
 ```go
 // Go
-result, _ := rustbox.New(apiKey).Run(rustbox.SubmitRequest{Language: "python", Code: "print(1)"})
+client := rustbox.New(apiKey)
+result, _ := client.Run(rustbox.SubmitRequest{
+    Language: "python",
+    Code:     "print(1)",
+})
 fmt.Println(result["verdict"])  // AC
 ```
 
 ```rust
 // Rust
-let result = Rustbox::new(&api_key).run(&SubmitRequest{
-    language: "python".into(), code: "print(1)".into(), stdin: "".into(),
+let client = Rustbox::new(&api_key)?;
+let result = client.run(&SubmitRequest {
+    language: "python".into(),
+    code:     "print(1)".into(),
+    ..Default::default()
 }).await?;
 println!("{}", result["verdict"]);  // AC
 ```

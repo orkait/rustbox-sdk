@@ -58,19 +58,35 @@ catch (e) {
 <details>
 <summary><strong>🧰 Full API</strong></summary>
 
-| Method | Returns | Notes |
-|---|---|---|
-| `new Rustbox(apiKey, opts?)` | `Rustbox` | `opts.baseUrl` overrides default |
-| `run(req)` | `Promise<SubmitResponse>` | Submit + wait + auto-poll |
-| `submit(req, wait?)` | `Promise<SubmitResponse>` | Low-level, no polling |
-| `getResult(id)` | `Promise<SubmitResponse>` | Poll a job by id |
-| `getLanguages()` | `Promise<string[]>` | Available runtimes |
-| `getHealth()` | `Promise<any>` | Service health |
-| `getReady()` | `Promise<any>` | K8s-style readiness |
+| Method | Returns |
+|---|---|
+| `new Rustbox(apiKey, opts?)` | `Rustbox` |
+| `run(req)` | `Promise<SubmitResponse>` |
+| `submit(req, wait?, opts?)` | `Promise<SubmitResponse>` |
+| `getResult(id)` | `Promise<SubmitResponse>` |
+| `getLanguages()` | `Promise<string[]>` |
+| `getHealth()` | `Promise<any>` |
+| `getReady()` | `Promise<any>` |
 
 ```ts
-type SubmitRequest  = { language: string; code: string; stdin?: string; };
-type SubmitResponse = { id: string; verdict?: string; [k: string]: any; };
+type SubmitRequest = {
+  language: string;
+  code: string;
+  stdin?: string;
+  profile?: "judge" | "agent";
+  webhookUrl?: string;
+  webhookSecret?: string;
+};
+
+type RustboxOptions = {
+  baseUrl?: string;     // default: https://rustbox-api.orkait.com
+  timeoutMs?: number;   // default: 65_000
+  maxRetries?: number;  // default: 2
+};
+
+type SubmitOptions = {
+  idempotencyKey?: string;  // safe to retry POST when set
+};
 ```
 
 </details>

@@ -7,7 +7,7 @@
 
 </div>
 
-Async via `tokio` + `reqwest`. Builder-style configuration.
+Async via `tokio` + `reqwest`. Builder-style configuration. Typed errors via `thiserror`.
 
 ## 🚀 Install
 
@@ -23,14 +23,13 @@ cargo add rustbox-sdk tokio --features tokio/macros,tokio/rt-multi-thread
 use rustbox_sdk::{Rustbox, SubmitRequest};
 
 #[tokio::main]
-async fn main() -> Result<(), String> {
-    let client = Rustbox::new(&std::env::var("RUSTBOX_API_KEY").unwrap());
-    let req = SubmitRequest {
+async fn main() -> Result<(), rustbox_sdk::RustboxError> {
+    let client = Rustbox::new(&std::env::var("RUSTBOX_API_KEY").unwrap())?;
+    let result = client.run(&SubmitRequest {
         language: "python".into(),
-        code: "print('hello')".into(),
-        stdin: "".into(),
-    };
-    let result = client.run(&req).await?;
+        code:     "print('hello')".into(),
+        ..Default::default()
+    }).await?;
     println!("{} {}", result["verdict"], result["stdout"]);  // AC hello
     Ok(())
 }
@@ -41,58 +40,69 @@ async fn main() -> Result<(), String> {
 ### Profiles
 
 ```rust
-use rustbox_sdk::{Rustbox, SubmitRequest, Profile};
+use rustbox_sdk::{Profile, SubmitRequest};
 
 // Judge profile (default) - short evaluation runs, no egress proxy.
 client.run(&SubmitRequest {
-    language: "python".into(), code: "print(1)".into(),
-    stdin: "".into(), profile: None,
+    language: "python".into(),
+    code: "print(1)".into(),
+    ..Default::default()
 }).await?;
 
 // Agent profile - longer jobs, egress proxy on, per-key byte budget.
 // Requires a non-trial API key.
 client.run(&SubmitRequest {
-    language: "python".into(), code: "...".into(),
-    stdin: "".into(), profile: Some(Profile::Agent),
+    language: "python".into(),
+    code: "...".into(),
+    profile: Some(Profile::Agent),
+    ..Default::default()
 }).await?;
 ```
 
-## ⚠️ Errors
-
-Today the Rust SDK returns `Result<_, String>`:
+## 🔒 Errors
 
 ```rust
+use rustbox_sdk::RustboxError;
+
 match client.run(&req).await {
     Ok(result) => { /* result["verdict"] */ }
-    Err(msg) => { /* "API Error: 401 Unauthorized" or transport error */ }
+    Err(RustboxError::Auth(_))    => { /* 401/403 - check api_key */ }
+    Err(RustboxError::RateLimit)  => { /* 429 - back off */ }
+    Err(RustboxError::Server(_))  => { /* 5xx - SDK already retried */ }
+    Err(RustboxError::Timeout)    => { /* request exceeded timeout */ }
+    Err(e)                        => { /* Transport, Decode, Api, ... */ }
 }
 ```
-
-A `RustboxError` enum (via `thiserror`) is planned. See [`../ROADMAP.md`](../ROADMAP.md). For now, treat any error as transient and back off.
 
 <details>
 <summary><strong>🧰 Full API</strong></summary>
 
-| Method | Returns | Notes |
-|---|---|---|
-| `Rustbox::new(api_key)` | `Rustbox` | empty `api_key` panics |
-| `.with_base_url(url)` | `Rustbox` | builder method, trims trailing slash |
-| `client.run(&req).await` | `Result<Value, String>` | Submit + wait + auto-poll |
-| `client.submit(&req, wait).await` | `Result<Value, String>` | Low-level, no polling |
-| `client.get_result(id).await` | `Result<Value, String>` | Poll a job by id |
-| `client.get_languages().await` | `Result<Vec<String>, String>` | Available runtimes |
-| `client.get_health().await` | `Result<Value, String>` | Service health |
-| `client.get_ready().await` | `Result<Value, String>` | K8s-style readiness |
+| Method | Returns |
+|---|---|
+| `Rustbox::new(api_key)` | `Result<Rustbox, RustboxError>` |
+| `.with_base_url(url)` | `Result<Rustbox, RustboxError>` (builder) |
+| `.with_timeout(d)` | `Result<Rustbox, RustboxError>` (builder) |
+| `.with_max_retries(n)` | `Rustbox` (builder) |
+| `client.run(&req).await` | `Result<Value, RustboxError>` |
+| `client.submit(&req, wait, opts).await` | `Result<Value, RustboxError>` |
+| `client.get_result(id).await` | `Result<Value, RustboxError>` |
+| `client.get_languages().await` | `Result<Vec<String>, RustboxError>` |
+| `client.get_health().await` | `Result<Value, RustboxError>` |
+| `client.get_ready().await` | `Result<Value, RustboxError>` |
 
 ```rust
 pub struct SubmitRequest {
     pub language: String,
     pub code: String,
     pub stdin: String,
+    pub profile: Option<Profile>,         // judge | agent
+    pub webhook_url: Option<String>,
+    pub webhook_secret: Option<String>,
 }
+// Implements Default - use `..Default::default()` to omit optionals.
 ```
 
-`Value` is `serde_json::Value`. Pull fields with `result["verdict"]` or deserialize via `serde_json::from_value` into your own struct.
+`Value` is `serde_json::Value`. Pull fields with `result["verdict"]` or `serde_json::from_value` into your own struct.
 
 </details>
 
