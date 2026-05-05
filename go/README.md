@@ -15,8 +15,6 @@ Stdlib `net/http` only. Functional options. Synchronous API.
 go get github.com/orkait/rustbox-sdk/go
 ```
 
-> ⏳ First release (v0.1.0) ships once `sdk/go/v0.1.0` tag is pushed (which tags the [public mirror](https://github.com/orkait/rustbox-sdk)). Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, `go get github.com/orkait/rustbox-sdk/go@main` works against the mirror's `main` branch.
-
 ## ⚡ Quickstart
 
 ```go

@@ -15,8 +15,6 @@ Native `fetch`. Zero runtime deps. Full type defs.
 bun add rustbox        # or: npm install rustbox / pnpm add rustbox
 ```
 
-> ⏳ First release (v0.1.0) ships once `sdk/ts/v0.1.0` tag is pushed. Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, install from the [public source mirror](https://github.com/orkait/rustbox-sdk).
-
 ## ⚡ Quickstart
 
 ```typescript

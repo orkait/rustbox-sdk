@@ -15,8 +15,6 @@ Async via `tokio` + `reqwest`. Builder-style configuration. Typed errors via `th
 cargo add rustbox-sdk tokio --features tokio/macros,tokio/rt-multi-thread
 ```
 
-> ⏳ First release (v0.1.0) ships once `sdk/rust/v0.1.0` tag is pushed. Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, depend via git: `rustbox-sdk = { git = "https://github.com/orkait/rustbox-sdk", branch = "main" }`.
-
 ## ⚡ Quickstart
 
 ```rust

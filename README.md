@@ -19,8 +19,6 @@ Official API clients for the [Rustbox](https://rustbox.orkait.com) cloud executi
 
 One-line client. One method (`run`) for the 95% case.
 
-> ⏳ First releases (v0.1.0) ship once `sdk/{ts,py,go,rust}/v0.1.0` tags are pushed. Pipelines wired in `.github/workflows/publish-sdk-*.yml`. See [`PUBLISHING.md`](./PUBLISHING.md). Until then, install from the [public source mirror](https://github.com/orkait/rustbox-sdk).
-
 ## ⚡ At a glance
 
 ```python

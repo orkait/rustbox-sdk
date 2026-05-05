@@ -17,8 +17,6 @@ Async-first via `httpx`. One required dep. Typed exceptions.
 pip install rustbox        # or: uv pip install rustbox / poetry add rustbox
 ```
 
-> ⏳ First release (v0.1.0) ships once `sdk/py/v0.1.0` tag is pushed. Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, install from the [public source mirror](https://github.com/orkait/rustbox-sdk).
-
 ## ⚡ Quickstart
 
 ```python

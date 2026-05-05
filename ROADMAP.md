@@ -15,14 +15,12 @@ Tracks the gaps each SDK has today. Open an issue at [`orkait/rustbox#issues`](h
 
 ## Published packages
 
-| SDK | Status | Registry | Tag |
-|---|---|---|---|
-| TypeScript | pipeline ready, awaiting first tag | [npm](https://www.npmjs.com/) | `sdk/ts/v0.1.0` |
-| Python | pipeline ready, awaiting first tag | [PyPI](https://pypi.org/) | `sdk/py/v0.1.0` |
-| Go | pipeline ready, awaiting first tag | [pkg.go.dev](https://pkg.go.dev/) | `sdk/go/v0.1.0` |
-| Rust | pipeline ready, awaiting first tag | [crates.io](https://crates.io/) | `sdk/rust/v0.1.0` |
-
-Tag-driven workflows in `.github/workflows/publish-sdk-{ts,py,go,rust}.yml` run automatically when the corresponding tag is pushed. Setup steps + token requirements: [`PUBLISHING.md`](./PUBLISHING.md).
+| SDK | Registry |
+|---|---|
+| TypeScript | [npm](https://www.npmjs.com/package/rustbox) |
+| Python | [PyPI](https://pypi.org/project/rustbox/) |
+| Go | [pkg.go.dev](https://pkg.go.dev/github.com/orkait/rustbox-sdk/go) |
+| Rust | [crates.io](https://crates.io/crates/rustbox-sdk) |
 
 ## SDK source
 
