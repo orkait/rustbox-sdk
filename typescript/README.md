@@ -93,7 +93,7 @@ type SubmitOptions = {
 <summary><strong>🧪 Tests</strong></summary>
 
 ```bash
-cd sdk/typescript && bun install && bun run test
+cd typescript && bun install && bun run test
 ```
 
 `vitest` + mocked `fetch`. No network.

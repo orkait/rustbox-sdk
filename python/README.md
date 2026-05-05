@@ -99,7 +99,7 @@ await client.aclose()              # close httpx connection pool
 <summary><strong>🧪 Tests</strong></summary>
 
 ```bash
-cd sdk/python
+cd python
 uv pip install pytest pytest-asyncio respx httpx
 python -m pytest -q
 ```

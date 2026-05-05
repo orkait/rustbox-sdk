@@ -1,6 +1,6 @@
 # 🛣️ SDK Roadmap
 
-Tracks the gaps each SDK has today. Open an issue at [`orkait/rustbox#issues`](https://github.com/orkait/rustbox/issues) if you need one of these sooner.
+Tracks the gaps each SDK has today. Open an issue at [`orkait/rustbox-sdk#issues`](https://github.com/orkait/rustbox-sdk/issues) if you need one of these sooner.
 
 ## Coming soon
 
@@ -24,4 +24,4 @@ Tracks the gaps each SDK has today. Open an issue at [`orkait/rustbox#issues`](h
 
 ## SDK source
 
-A read-only public mirror at [`orkait/rustbox-sdk`](https://github.com/orkait/rustbox-sdk) is auto-synced from `sdk/` on every push to `main`, so customers can read the SDK source they install. Issues and feedback go to [`orkait/rustbox#issues`](https://github.com/orkait/rustbox/issues).
+The source code for all SDKs is available at [`orkait/rustbox-sdk`](https://github.com/orkait/rustbox-sdk). Issues and feature requests are tracked on the [issue tracker](https://github.com/orkait/rustbox-sdk/issues).

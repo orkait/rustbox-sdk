@@ -13,8 +13,7 @@
 //! # Ok(()) }
 //! ```
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde::Serialize;
 use thiserror::Error;
@@ -280,16 +279,8 @@ impl Rustbox {
     }
 }
 
-// Idempotency key: nanosecond timestamp + process-local atomic counter.
-// Unique across concurrent calls within one process; cheap; no deps.
-static COUNTER: AtomicU64 = AtomicU64::new(0);
 fn idempotency_id() -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0);
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("{nanos:016x}-{n:016x}")
+    uuid::Uuid::new_v4().to_string()
 }
 
 #[cfg(test)]

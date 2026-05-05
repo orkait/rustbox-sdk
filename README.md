@@ -19,6 +19,22 @@ Official API clients for the [Rustbox](https://rustbox.orkait.com) cloud executi
 
 One-line client. One method (`run`) for the 95% case.
 
+## 🚀 Install
+
+```bash
+# TypeScript
+bun add rustbox
+
+# Python
+pip install rustbox
+
+# Rust
+cargo add rustbox-sdk
+
+# Go
+go get github.com/orkait/rustbox-sdk/go@v0.1.0
+```
+
 ## ⚡ At a glance
 
 ```python
@@ -134,5 +150,5 @@ Planned features per language: [`./ROADMAP.md`](./ROADMAP.md).
 
 - 🌐 [rustbox.orkait.com](https://rustbox.orkait.com)
 - 📚 [API docs](https://rustbox.orkait.com/docs)
-- 🐛 [Issue tracker](https://github.com/orkait/rustbox/issues)
-- 🔓 [Public source mirror](https://github.com/orkait/rustbox-sdk)
+- 🐛 [Issue tracker](https://github.com/orkait/rustbox-sdk/issues)
+- 🔓 [Source code](https://github.com/orkait/rustbox-sdk)

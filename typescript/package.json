@@ -17,7 +17,7 @@
     "directory": "typescript"
   },
   "bugs": {
-    "url": "https://github.com/orkait/rustbox/issues"
+    "url": "https://github.com/orkait/rustbox-sdk/issues"
   },
   "license": "MIT",
   "author": "Orkait <engineering@orkait.com>",

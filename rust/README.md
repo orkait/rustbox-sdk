@@ -108,7 +108,7 @@ pub struct SubmitRequest {
 <summary><strong>🧪 Tests</strong></summary>
 
 ```bash
-cd sdk/rust && cargo test
+cd rust && cargo test
 ```
 
 `wiremock` mocks. No network.

@@ -27,7 +27,7 @@ dependencies = [
 Homepage = "https://rustbox.orkait.com"
 Documentation = "https://rustbox.orkait.com/docs"
 Repository = "https://github.com/orkait/rustbox-sdk"
-Issues = "https://github.com/orkait/rustbox/issues"
+Issues = "https://github.com/orkait/rustbox-sdk/issues"
 
 [project.optional-dependencies]
 dev = [

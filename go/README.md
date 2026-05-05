@@ -104,7 +104,7 @@ type SubmitOptions struct {
 <summary><strong>🧪 Tests</strong></summary>
 
 ```bash
-cd sdk/go && go test ./...
+cd go && go test ./...
 ```
 
 `httptest.NewServer` mocks. No network.
