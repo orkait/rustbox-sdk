@@ -7,8 +7,7 @@
 //! let res = client.run(&SubmitRequest {
 //!     language: "python".into(),
 //!     code: "print('hi')".into(),
-//!     stdin: "".into(),
-//!     profile: None,
+//!     ..Default::default()
 //! }).await?;
 //! println!("{}", res["verdict"]);
 //! # Ok(()) }
