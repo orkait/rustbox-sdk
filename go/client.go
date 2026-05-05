@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/big"
 	"net/http"
 	"strings"
 	"time"
@@ -116,25 +115,11 @@ func New(apiKey string, opts ...Option) *Client {
 func (c *Client) BaseURL() string { return c.baseURL }
 
 func (c *Client) backoffDelay(attempt int) time.Duration {
-	base := time.Duration(100*math.Pow(2, float64(attempt))) * time.Millisecond
-	jitter := time.Duration(rand63nMod(int64(base))) * time.Nanosecond
-	d := base + jitter
+	d := time.Duration(100*math.Pow(2, float64(attempt))) * time.Millisecond
 	if d > 5*time.Second {
 		d = 5 * time.Second
 	}
 	return d
-}
-
-// rand63nMod returns a random int in [0, n) using crypto/rand.
-func rand63nMod(n int64) int64 {
-	if n <= 0 {
-		return 0
-	}
-	v, err := rand.Int(rand.Reader, big.NewInt(n))
-	if err != nil {
-		return 0
-	}
-	return v.Int64()
 }
 
 func (c *Client) do(req *http.Request) (*http.Response, error) {
@@ -181,15 +166,9 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 }
 
 func isTimeout(err error) bool {
-	if err == nil {
-		return false
-	}
 	type timeoutErr interface{ Timeout() bool }
 	var te timeoutErr
-	if errors.As(err, &te) && te.Timeout() {
-		return true
-	}
-	return strings.Contains(err.Error(), "timeout")
+	return errors.As(err, &te) && te.Timeout()
 }
 
 func (c *Client) handle(resp *http.Response) (map[string]interface{}, error) {

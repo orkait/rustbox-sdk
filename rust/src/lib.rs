@@ -14,8 +14,10 @@
 //! # Ok(()) }
 //! ```
 
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use serde::Serialize;
-use std::time::Duration;
 use thiserror::Error;
 use tokio::time::sleep;
 
@@ -50,9 +52,9 @@ pub struct SubmitRequest {
     pub profile: Option<Profile>,
     /// HMAC-signed callback. Server POSTs the result to this URL when
     /// the job finishes. Requires `webhook_secret`.
-    #[serde(skip_serializing_if = "Option::is_none", rename = "webhook_url")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub webhook_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "webhook_secret")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub webhook_secret: Option<String>,
 }
 
@@ -143,9 +145,7 @@ impl Rustbox {
     }
 
     fn backoff_delay(&self, attempt: u32) -> Duration {
-        let base = 100u64 * (1u64 << attempt.min(8)); // 100, 200, 400, ...
-        let jitter = (base as f64 * fastrand_f64()) as u64;
-        Duration::from_millis((base + jitter).min(5_000))
+        Duration::from_millis((100u64 * (1u64 << attempt.min(8))).min(5_000))
     }
 
     async fn send_with_retry(
@@ -256,7 +256,7 @@ impl Rustbox {
     /// Idempotency-Key so the underlying POST is safe to retry.
     pub async fn run(&self, req: &SubmitRequest) -> Result<serde_json::Value, RustboxError> {
         let opts = SubmitOptions {
-            idempotency_key: Some(uuid_v4()),
+            idempotency_key: Some(idempotency_id()),
         };
         let mut res = self.submit(req, true, opts).await?;
         if res.get("verdict").is_some() {
@@ -281,45 +281,16 @@ impl Rustbox {
     }
 }
 
-// Inline tiny RNG + UUID helpers to avoid pulling rand / uuid as deps.
-fn fastrand_f64() -> f64 {
-    use std::time::SystemTime;
+// Idempotency key: nanosecond timestamp + process-local atomic counter.
+// Unique across concurrent calls within one process; cheap; no deps.
+static COUNTER: AtomicU64 = AtomicU64::new(0);
+fn idempotency_id() -> String {
     let nanos = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.subsec_nanos() as u64)
-        .unwrap_or(0);
-    ((nanos
-        .wrapping_mul(6364136223846793005)
-        .wrapping_add(1442695040888963407)) as u32 as f64)
-        / (u32::MAX as f64)
-}
-
-fn uuid_v4() -> String {
-    use std::time::SystemTime;
-    let mut bytes = [0u8; 16];
-    let nanos = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
+        .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
-    let mut state = nanos
-        .wrapping_mul(6364136223846793005)
-        .wrapping_add(1442695040888963407);
-    for b in bytes.iter_mut() {
-        state = state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        *b = (state >> 32) as u8;
-    }
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    format!(
-        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        bytes[0], bytes[1], bytes[2], bytes[3],
-        bytes[4], bytes[5],
-        bytes[6], bytes[7],
-        bytes[8], bytes[9],
-        bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
-    )
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{nanos:016x}-{n:016x}")
 }
 
 #[cfg(test)]

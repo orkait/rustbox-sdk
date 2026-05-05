@@ -1,7 +1,8 @@
-import httpx
 import asyncio
-import random
-from typing import Dict, Any, List, Literal, Optional
+import uuid
+from typing import Any, Dict, List, Literal, Optional
+
+import httpx
 from .errors import RustboxAuthError, RustboxRateLimitError, RustboxServerError, RustboxError, RustboxTimeoutError
 
 VERSION = "0.1.0"
@@ -61,11 +62,9 @@ class Rustbox:
         raise RustboxError(f"API Error: {response.status_code} - {response.text}")
 
     def _backoff_delay(self, attempt: int) -> float:
-        base = 0.1 * (2 ** attempt)
-        return min(base + random.uniform(0, base), 5.0)
+        return min(0.1 * (2 ** attempt), 5.0)
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
-        last_exc: Optional[BaseException] = None
         for attempt in range(self.max_retries + 1):
             try:
                 resp = await self.client.request(method, path, **kwargs)
@@ -74,18 +73,14 @@ class Rustbox:
                     continue
                 return resp
             except httpx.TimeoutException as e:
-                last_exc = e
                 if attempt >= self.max_retries:
                     raise RustboxTimeoutError(str(e)) from e
                 await asyncio.sleep(self._backoff_delay(attempt))
-            except httpx.NetworkError as e:
-                last_exc = e
+            except httpx.NetworkError:
                 if attempt >= self.max_retries:
                     raise
                 await asyncio.sleep(self._backoff_delay(attempt))
-        if last_exc:
-            raise last_exc
-        raise RustboxError("retry exhausted")
+        raise RustboxError("retry exhausted")  # unreachable
 
     async def submit(
         self,
@@ -145,13 +140,10 @@ class Rustbox:
         stdin: str = "",
         profile: Optional[Profile] = None,
     ) -> Dict[str, Any]:
-        # Auto-generate an idempotency key so the underlying POST is
-        # safe to retry on transient failure.
-        import uuid
-        idempotency_key = str(uuid.uuid4())
+        # Auto-generated idempotency key makes the underlying POST safe to retry.
         res = await self.submit(
             language, code, stdin,
-            profile=profile, wait=True, idempotency_key=idempotency_key,
+            profile=profile, wait=True, idempotency_key=str(uuid.uuid4()),
         )
         if res.get("verdict"):
             return res

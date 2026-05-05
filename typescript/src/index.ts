@@ -41,18 +41,6 @@ const DEFAULT_TIMEOUT_MS = 65_000;
 const DEFAULT_MAX_RETRIES = 2;
 const USER_AGENT = `rustbox-sdk-ts/${VERSION}`;
 
-function uuid4(): string {
-  // browser + node have crypto.randomUUID() (Node 19+). Fallback for older Node.
-  if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
-  // RFC4122 v4 fallback
-  const bytes = new Uint8Array(16);
-  for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
-}
-
 export class Rustbox {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -97,9 +85,7 @@ export class Rustbox {
   }
 
   private backoff(attempt: number): number {
-    const base = 100 * Math.pow(2, attempt);  // 100, 200, 400, ...
-    const jitter = Math.random() * base;
-    return Math.min(base + jitter, 5_000);
+    return Math.min(100 * Math.pow(2, attempt), 5_000);
   }
 
   private sleep(ms: number): Promise<void> {
@@ -169,7 +155,7 @@ export class Rustbox {
   /** Submit + wait (sync) + auto-poll fallback. Auto-generates an
    *  Idempotency-Key so the underlying POST is safe to retry. */
   async run(req: SubmitRequest): Promise<SubmitResponse> {
-    const idempotencyKey = uuid4();
+    const idempotencyKey = crypto.randomUUID();
     let res = await this.submit(req, true, { idempotencyKey });
     if (res.verdict) return res;
     const id = res.id;
