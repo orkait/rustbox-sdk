@@ -4,11 +4,26 @@ use tokio::time::sleep;
 
 pub const DEFAULT_BASE_URL: &str = "https://rustbox-api.orkait.com";
 
+/// Execution profile.
+///
+/// - `Profile::Judge` (default): short evaluation runs.
+/// - `Profile::Agent`: longer jobs with egress proxy + per-key byte
+///   budgets. Requires a non-trial API key.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Profile {
+    Judge,
+    Agent,
+}
+
 #[derive(Serialize)]
 pub struct SubmitRequest {
     pub language: String,
     pub code: String,
     pub stdin: String,
+    /// Optional profile override. None falls back to server-side default ("judge").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<Profile>,
 }
 
 pub struct Rustbox {
@@ -150,6 +165,7 @@ mod tests {
             language: "python".into(),
             code: "print(1)".into(),
             stdin: "".into(),
+            profile: None,
         };
         let res = client.run(&req).await.unwrap();
         assert_eq!(res.get("verdict").unwrap().as_str().unwrap(), "AC");
@@ -179,6 +195,7 @@ mod tests {
             language: "python".into(),
             code: "while True: pass".into(),
             stdin: "".into(),
+            profile: Some(Profile::Agent),
         };
         let res = client.run(&req).await.unwrap();
         assert_eq!(res.get("verdict").unwrap().as_str().unwrap(), "TLE");

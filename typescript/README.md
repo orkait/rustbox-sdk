@@ -15,6 +15,8 @@ Native `fetch`. Zero runtime deps. Full type defs.
 bun add rustbox        # or: npm install rustbox / pnpm add rustbox
 ```
 
+> ⏳ First release (v0.1.0) ships once `sdk/ts/v0.1.0` tag is pushed. Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, install from the [public source mirror](https://github.com/orkait/rustbox-sdk).
+
 ## ⚡ Quickstart
 
 ```typescript
@@ -28,6 +30,17 @@ console.log(result.verdict, result.stdout);  // AC hello
 ```
 
 `run()` submits, waits for sync completion, polls if needed, returns the verdict.
+
+### Profiles
+
+```typescript
+// Judge profile (default) - short evaluation runs, no egress proxy.
+await client.run({ language: "python", code: "print(1)" });
+
+// Agent profile - longer jobs, egress proxy on, per-key byte budget.
+// Requires a non-trial API key.
+await client.run({ language: "python", code: "...", profile: "agent" });
+```
 
 ## 🔒 Errors
 

@@ -1,11 +1,40 @@
 {
   "name": "rustbox",
   "version": "0.1.0",
+  "description": "Official TypeScript SDK for Rustbox - run untrusted code in a kernel-enforced sandbox.",
+  "keywords": [
+    "rustbox",
+    "sandbox",
+    "code-execution",
+    "untrusted-code",
+    "judge",
+    "agent"
+  ],
+  "homepage": "https://rustbox.orkait.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orkait/rustbox-sdk.git",
+    "directory": "typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/orkait/rustbox/issues"
+  },
+  "license": "MIT",
+  "author": "Orkait <engineering@orkait.com>",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

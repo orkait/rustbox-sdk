@@ -2,7 +2,17 @@ export class RustboxAuthError extends Error { constructor(m: string) { super(m);
 export class RustboxRateLimitError extends Error { constructor(m: string) { super(m); this.name="RustboxRateLimitError"; } }
 export class RustboxServerError extends Error { constructor(m: string) { super(m); this.name="RustboxServerError"; } }
 
-export type SubmitRequest = { language: string; code: string; stdin?: string; };
+export type Profile = "judge" | "agent";
+
+export type SubmitRequest = {
+  language: string;
+  code: string;
+  stdin?: string;
+  /** "judge" (default) for short evaluation runs. "agent" for longer
+   *  jobs with egress proxy + per-key byte budgets. Agent requires a
+   *  non-trial API key. */
+  profile?: Profile;
+};
 export type SubmitResponse = { id: string; verdict?: string; [key: string]: any; };
 
 export type RustboxOptions = {
@@ -38,6 +48,7 @@ export class Rustbox {
         language: req.language,
         code: req.code,
         stdin: req.stdin ?? "",
+        ...(req.profile ? { profile: req.profile } : {}),
       }),
     });
     return this.handle(res);

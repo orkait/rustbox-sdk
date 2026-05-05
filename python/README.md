@@ -17,6 +17,8 @@ Async-first via `httpx`. One required dep. Typed exceptions.
 pip install rustbox        # or: uv pip install rustbox / poetry add rustbox
 ```
 
+> ⏳ First release (v0.1.0) ships once `sdk/py/v0.1.0` tag is pushed. Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, install from the [public source mirror](https://github.com/orkait/rustbox-sdk).
+
 ## ⚡ Quickstart
 
 ```python
@@ -32,6 +34,17 @@ asyncio.run(main())
 ```
 
 `run()` submits, waits for sync completion, polls if needed, returns the verdict.
+
+### Profiles
+
+```python
+# Judge profile (default) - short evaluation runs, no egress proxy.
+await client.run("python", "print(1)")
+
+# Agent profile - longer jobs, egress proxy on, per-key byte budget.
+# Requires a non-trial API key.
+await client.run("python", "...", profile="agent")
+```
 
 ## 🔒 Errors
 

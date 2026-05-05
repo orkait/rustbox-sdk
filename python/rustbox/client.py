@@ -1,9 +1,11 @@
 import httpx
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Literal, Optional
 from .errors import RustboxAuthError, RustboxRateLimitError, RustboxServerError, RustboxError
 
 DEFAULT_BASE_URL = "https://rustbox-api.orkait.com"
+
+Profile = Literal["judge", "agent"]
 
 
 class Rustbox:
@@ -30,11 +32,21 @@ class Rustbox:
             raise RustboxServerError(f"Server error: {response.status_code}")
         raise RustboxError(f"API Error: {response.status_code} - {response.text}")
 
-    async def submit(self, language: str, code: str, stdin: str = "", wait: bool = False) -> Dict[str, Any]:
+    async def submit(
+        self,
+        language: str,
+        code: str,
+        stdin: str = "",
+        profile: Optional[Profile] = None,
+        wait: bool = False,
+    ) -> Dict[str, Any]:
+        body: Dict[str, Any] = {"language": language, "code": code, "stdin": stdin}
+        if profile is not None:
+            body["profile"] = profile
         resp = await self.client.post(
             "/api/submit",
             params={"wait": str(wait).lower()},
-            json={"language": language, "code": code, "stdin": stdin},
+            json=body,
         )
         self._handle_error(resp)
         return resp.json()
@@ -59,8 +71,14 @@ class Rustbox:
         self._handle_error(resp)
         return resp.json()
 
-    async def run(self, language: str, code: str, stdin: str = "") -> Dict[str, Any]:
-        res = await self.submit(language, code, stdin, wait=True)
+    async def run(
+        self,
+        language: str,
+        code: str,
+        stdin: str = "",
+        profile: Optional[Profile] = None,
+    ) -> Dict[str, Any]:
+        res = await self.submit(language, code, stdin, profile=profile, wait=True)
         if res.get("verdict"):
             return res
 

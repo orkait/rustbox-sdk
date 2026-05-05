@@ -12,10 +12,21 @@ import (
 
 const DefaultBaseURL = "https://rustbox-api.orkait.com"
 
+// Profile selects the execution profile.
+//   - ProfileJudge ("judge", default): short evaluation runs.
+//   - ProfileAgent ("agent"): longer jobs with egress proxy + per-key
+//     byte budgets. Requires a non-trial API key.
+const (
+	ProfileJudge = "judge"
+	ProfileAgent = "agent"
+)
+
 type SubmitRequest struct {
 	Language string `json:"language"`
 	Code     string `json:"code"`
 	Stdin    string `json:"stdin"`
+	// Profile is "judge" (default if empty) or "agent". See Profile* consts.
+	Profile string `json:"profile,omitempty"`
 }
 
 type Client struct {

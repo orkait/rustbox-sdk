@@ -15,6 +15,8 @@ Stdlib `net/http` only. Functional options. Synchronous API.
 go get github.com/orkait/rustbox-sdk/go
 ```
 
+> ⏳ First release (v0.1.0) ships once `sdk/go/v0.1.0` tag is pushed (which tags the [public mirror](https://github.com/orkait/rustbox-sdk)). Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, `go get github.com/orkait/rustbox-sdk/go@main` works against the mirror's `main` branch.
+
 ## ⚡ Quickstart
 
 ```go
@@ -37,6 +39,19 @@ func main() {
 ```
 
 `Run()` submits, waits for sync completion, polls if needed, returns the verdict.
+
+### Profiles
+
+```go
+// Judge profile (default) - short evaluation runs, no egress proxy.
+client.Run(rustbox.SubmitRequest{Language: "python", Code: "print(1)"})
+
+// Agent profile - longer jobs, egress proxy on, per-key byte budget.
+// Requires a non-trial API key.
+client.Run(rustbox.SubmitRequest{
+    Language: "python", Code: "...", Profile: rustbox.ProfileAgent,
+})
+```
 
 ## ⚠️ Errors
 

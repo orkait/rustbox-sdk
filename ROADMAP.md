@@ -15,14 +15,14 @@ Tracks the gaps each SDK has today. Open an issue at [`orkait/rustbox#issues`](h
 
 ## Published packages
 
-| SDK | Status | Registry |
-|---|---|---|
-| TypeScript | source ready, not published | [npm](https://www.npmjs.com/) |
-| Python | source ready, not published | [PyPI](https://pypi.org/) |
-| Go | source ready, not published | [pkg.go.dev](https://pkg.go.dev/) |
-| Rust | source ready, not published | [crates.io](https://crates.io/) |
+| SDK | Status | Registry | Tag |
+|---|---|---|---|
+| TypeScript | pipeline ready, awaiting first tag | [npm](https://www.npmjs.com/) | `sdk/ts/v0.1.0` |
+| Python | pipeline ready, awaiting first tag | [PyPI](https://pypi.org/) | `sdk/py/v0.1.0` |
+| Go | pipeline ready, awaiting first tag | [pkg.go.dev](https://pkg.go.dev/) | `sdk/go/v0.1.0` |
+| Rust | pipeline ready, awaiting first tag | [crates.io](https://crates.io/) | `sdk/rust/v0.1.0` |
 
-The first publish round will land once `0.1.0` is tagged and a per-language CI workflow exists.
+Tag-driven workflows in `.github/workflows/publish-sdk-{ts,py,go,rust}.yml` run automatically when the corresponding tag is pushed. Setup steps + token requirements: [`PUBLISHING.md`](./PUBLISHING.md).
 
 ## SDK source
 

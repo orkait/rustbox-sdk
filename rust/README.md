@@ -15,6 +15,8 @@ Async via `tokio` + `reqwest`. Builder-style configuration.
 cargo add rustbox-sdk tokio --features tokio/macros,tokio/rt-multi-thread
 ```
 
+> ⏳ First release (v0.1.0) ships once `sdk/rust/v0.1.0` tag is pushed. Pipeline ready: see [`PUBLISHING.md`](../PUBLISHING.md). Until then, depend via git: `rustbox-sdk = { git = "https://github.com/orkait/rustbox-sdk", branch = "main" }`.
+
 ## ⚡ Quickstart
 
 ```rust
@@ -35,6 +37,25 @@ async fn main() -> Result<(), String> {
 ```
 
 `run()` submits, waits for sync completion, polls if needed, returns the verdict.
+
+### Profiles
+
+```rust
+use rustbox_sdk::{Rustbox, SubmitRequest, Profile};
+
+// Judge profile (default) - short evaluation runs, no egress proxy.
+client.run(&SubmitRequest {
+    language: "python".into(), code: "print(1)".into(),
+    stdin: "".into(), profile: None,
+}).await?;
+
+// Agent profile - longer jobs, egress proxy on, per-key byte budget.
+// Requires a non-trial API key.
+client.run(&SubmitRequest {
+    language: "python".into(), code: "...".into(),
+    stdin: "".into(), profile: Some(Profile::Agent),
+}).await?;
+```
 
 ## ⚠️ Errors
 
