@@ -48,12 +48,6 @@ pub struct SubmitRequest {
     /// Optional profile override. None falls back to server-side default ("judge").
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<Profile>,
-    /// HMAC-signed callback. Server POSTs the result to this URL when
-    /// the job finishes. Requires `webhook_secret`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub webhook_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub webhook_secret: Option<String>,
 }
 
 /// Errors returned by the Rustbox client.
@@ -295,8 +289,6 @@ mod tests {
             code: "print(1)".into(),
             stdin: "".into(),
             profile: None,
-            webhook_url: None,
-            webhook_secret: None,
         }
     }
 

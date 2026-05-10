@@ -89,8 +89,6 @@ type SubmitRequest struct {
     Code          string `json:"code"`
     Stdin         string `json:"stdin"`
     Profile       string `json:"profile,omitempty"`        // ProfileJudge | ProfileAgent
-    WebhookURL    string `json:"webhook_url,omitempty"`
-    WebhookSecret string `json:"webhook_secret,omitempty"`
 }
 
 type SubmitOptions struct {

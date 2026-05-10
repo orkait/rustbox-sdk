@@ -179,33 +179,6 @@ func TestSubmitReturnsErrServerOn5xxAfterRetries(t *testing.T) {
 	}
 }
 
-func TestSubmitIncludesWebhookFields(t *testing.T) {
-	var captured map[string]interface{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&captured)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{"id":"1","verdict":"AC"}`))
-	}))
-	defer srv.Close()
-
-	_, err := New("k", WithBaseURL(srv.URL)).Submit(SubmitRequest{
-		Language:      "python",
-		Code:          "print(1)",
-		WebhookURL:    "https://example.com/hook",
-		WebhookSecret: "wh_secret",
-	}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if captured["webhook_url"] != "https://example.com/hook" {
-		t.Fatalf("webhook_url not propagated: %v", captured)
-	}
-	if captured["webhook_secret"] != "wh_secret" {
-		t.Fatalf("webhook_secret not propagated: %v", captured)
-	}
-}
-
 func TestRunPollsUntilVerdict(t *testing.T) {
 	var calls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

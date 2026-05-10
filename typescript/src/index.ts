@@ -15,10 +15,6 @@ export type SubmitRequest = {
    *  jobs with egress proxy + per-key byte budgets. Agent requires a
    *  non-trial API key. */
   profile?: Profile;
-  /** HMAC-signed callback. Server POSTs the result to this URL when
-   *  the job finishes. Requires `webhookSecret`. */
-  webhookUrl?: string;
-  webhookSecret?: string;
 };
 
 export type SubmitResponse = { id: string; verdict?: string; [key: string]: any; };
@@ -116,8 +112,6 @@ export class Rustbox {
       stdin: req.stdin ?? "",
     };
     if (req.profile) body.profile = req.profile;
-    if (req.webhookUrl) body.webhook_url = req.webhookUrl;
-    if (req.webhookSecret) body.webhook_secret = req.webhookSecret;
 
     const headers = this.headers({ "Content-Type": "application/json" });
     if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;

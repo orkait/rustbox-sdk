@@ -71,28 +71,6 @@ async def test_submit_includes_profile_when_set():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_submit_includes_webhook_fields():
-    captured = {}
-
-    def handler(request):
-        if request.content:
-            import json as _json
-            captured.update(_json.loads(request.content))
-        return Response(200, json={"id": "1", "verdict": "AC"})
-
-    respx.post(f"{DEFAULT_BASE_URL}/api/submit").mock(side_effect=handler)
-    rb = Rustbox("k")
-    await rb.submit(
-        "python", "print(1)",
-        webhook_url="https://example.com/hook",
-        webhook_secret="wh_secret",
-    )
-    assert captured["webhook_url"] == "https://example.com/hook"
-    assert captured["webhook_secret"] == "wh_secret"
-
-
-@pytest.mark.asyncio
-@respx.mock
 async def test_submit_retries_on_503_then_succeeds():
     calls = {"n": 0}
 

@@ -51,10 +51,6 @@ type SubmitRequest struct {
 	Stdin    string `json:"stdin"`
 	// Profile is "judge" (default if empty) or "agent". See Profile* consts.
 	Profile string `json:"profile,omitempty"`
-	// WebhookURL + WebhookSecret enable HMAC-signed callback delivery.
-	// Server POSTs the result to WebhookURL when the job finishes.
-	WebhookURL    string `json:"webhook_url,omitempty"`
-	WebhookSecret string `json:"webhook_secret,omitempty"`
 }
 
 // SubmitOptions are per-request knobs that don't belong in the request body.

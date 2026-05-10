@@ -94,8 +94,6 @@ pub struct SubmitRequest {
     pub code: String,
     pub stdin: String,
     pub profile: Option<Profile>,         // judge | agent
-    pub webhook_url: Option<String>,
-    pub webhook_secret: Option<String>,
 }
 // Implements Default - use `..Default::default()` to omit optionals.
 ```

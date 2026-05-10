@@ -90,16 +90,10 @@ class Rustbox:
         profile: Optional[Profile] = None,
         wait: bool = False,
         idempotency_key: Optional[str] = None,
-        webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
     ) -> Dict[str, Any]:
         body: Dict[str, Any] = {"language": language, "code": code, "stdin": stdin}
         if profile is not None:
             body["profile"] = profile
-        if webhook_url is not None:
-            body["webhook_url"] = webhook_url
-        if webhook_secret is not None:
-            body["webhook_secret"] = webhook_secret
         headers: Dict[str, str] = {}
         if idempotency_key is not None:
             headers["Idempotency-Key"] = idempotency_key

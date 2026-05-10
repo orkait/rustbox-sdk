@@ -82,8 +82,6 @@ await client.submit(
     language, code, stdin="",
     profile=None, wait=False,
     idempotency_key=None,
-    webhook_url=None,
-    webhook_secret=None,
 )  # -> dict
 
 await client.get_result(job_id)    # -> dict

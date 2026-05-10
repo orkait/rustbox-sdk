@@ -72,8 +72,6 @@ type SubmitRequest = {
   code: string;
   stdin?: string;
   profile?: "judge" | "agent";
-  webhookUrl?: string;
-  webhookSecret?: string;
 };
 
 type RustboxOptions = {

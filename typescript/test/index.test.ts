@@ -104,21 +104,6 @@ describe("Rustbox", () => {
       .rejects.toBeInstanceOf(RustboxServerError);
   });
 
-  it("submit_should_include_webhook_fields_when_provided", async () => {
-    let captured: any;
-    const fetchMock = vi.fn().mockImplementation((_url: string, init: any) => {
-      captured = JSON.parse(init.body);
-      return Promise.resolve(new Response(JSON.stringify({ id: "1", verdict: "AC" }), { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    await new Rustbox("k").submit({
-      language: "python", code: "print(1)",
-      webhookUrl: "https://example.com/hook", webhookSecret: "wh_secret",
-    });
-    expect(captured.webhook_url).toBe("https://example.com/hook");
-    expect(captured.webhook_secret).toBe("wh_secret");
-  });
-
   it("run_should_poll_when_initial_returns_408", async () => {
     let call = 0;
     const fetchMock = vi.fn().mockImplementation(async () => {
