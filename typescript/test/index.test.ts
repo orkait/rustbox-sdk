@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Rustbox, RustboxAuthError, RustboxRateLimitError, RustboxServerError, VERSION } from "../src/index";
 
-const DEFAULT_BASE = "https://rustbox-api.orkait.com";
+const DEFAULT_BASE = "https://rustbox.orkait.com";
 
 describe("Rustbox", () => {
   beforeEach(() => { vi.restoreAllMocks(); });

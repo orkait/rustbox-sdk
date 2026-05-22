@@ -20,7 +20,7 @@ import (
 const Version = "0.1.0"
 
 // DefaultBaseURL is the production Rustbox endpoint.
-const DefaultBaseURL = "https://rustbox-api.orkait.com"
+const DefaultBaseURL = "https://rustbox.orkait.com"
 
 // DefaultTimeout is the per-request HTTP timeout if WithHTTPClient is not used.
 const DefaultTimeout = 65 * time.Second

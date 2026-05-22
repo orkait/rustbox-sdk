@@ -139,7 +139,7 @@ Skip polling - have Rustbox POST the result to your endpoint with an HMAC signat
 Every SDK points at the production endpoint by default. No configuration needed.
 
 ```text
-https://rustbox-api.orkait.com
+https://rustbox.orkait.com
 ```
 
 ## 🛣️ Roadmap

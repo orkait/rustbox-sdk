@@ -32,7 +32,7 @@ export type SubmitOptions = {
   idempotencyKey?: string;
 };
 
-const DEFAULT_BASE_URL = "https://rustbox-api.orkait.com";
+const DEFAULT_BASE_URL = "https://rustbox.orkait.com";
 const DEFAULT_TIMEOUT_MS = 65_000;
 const DEFAULT_MAX_RETRIES = 2;
 const USER_AGENT = `rustbox-sdk-ts/${VERSION}`;

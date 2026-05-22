@@ -23,7 +23,7 @@ use tokio::time::sleep;
 pub const VERSION: &str = "0.1.0";
 
 /// Production endpoint.
-pub const DEFAULT_BASE_URL: &str = "https://rustbox-api.orkait.com";
+pub const DEFAULT_BASE_URL: &str = "https://rustbox.orkait.com";
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(65);
 const DEFAULT_MAX_RETRIES: u32 = 2;

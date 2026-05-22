@@ -7,7 +7,7 @@ from .errors import RustboxAuthError, RustboxRateLimitError, RustboxServerError,
 
 VERSION = "0.1.0"
 
-DEFAULT_BASE_URL = "https://rustbox-api.orkait.com"
+DEFAULT_BASE_URL = "https://rustbox.orkait.com"
 DEFAULT_TIMEOUT_SECS = 65.0
 DEFAULT_MAX_RETRIES = 2
 USER_AGENT = f"rustbox-sdk-py/{VERSION}"

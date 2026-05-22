@@ -75,7 +75,7 @@ type SubmitRequest = {
 };
 
 type RustboxOptions = {
-  baseUrl?: string;     // default: https://rustbox-api.orkait.com
+  baseUrl?: string;     // default: https://rustbox.orkait.com
   timeoutMs?: number;   // default: 65_000
   maxRetries?: number;  // default: 2
 };
