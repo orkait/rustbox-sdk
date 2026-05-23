@@ -14,7 +14,7 @@ VERSION = "0.1.0"
 # callers can monkey-patch in tests or for staging environments.
 REGIONS: Dict[str, str] = {
     "eu": "https://rustbox-eu.orkait.com",
-    "us": "https://rustbox-us.orkait.com",
+    # us region torn down 2026-05-23; re-add when justified.
 }
 
 DEFAULT_TIMEOUT_SECS = 65.0

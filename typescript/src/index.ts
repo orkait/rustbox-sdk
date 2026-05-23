@@ -20,7 +20,7 @@ export type SubmitResponse = { id: string; verdict?: string; [key: string]: any;
  *  region-pick algorithm probes every entry and picks the fastest. */
 export const REGIONS: Record<string, string> = {
   eu: "https://rustbox-eu.orkait.com",
-  us: "https://rustbox-us.orkait.com",
+  // us region torn down 2026-05-23; re-add when justified.
 };
 
 export type RegionId = keyof typeof REGIONS;
