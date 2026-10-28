@@ -2,153 +2,121 @@
 
 # 🦀 Rustbox SDKs
 
-**Run untrusted code in a kernel-enforced sandbox. From any language.**
+**Run and judge untrusted code through the Rustbox judge API, from Python, TypeScript, Rust or Go.**
 
 <br />
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&logoColor=white)](./python/README.md)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-3178C6?logo=typescript&logoColor=white)](./typescript/README.md)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](./python/README.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Node%2020%2B%20%7C%20Bun-3178C6?logo=typescript&logoColor=white)](./typescript/README.md)
+[![Rust](https://img.shields.io/badge/Rust-1.82%2B-f74c00?logo=rust&logoColor=white)](./rust/README.md)
 [![Go](https://img.shields.io/badge/Go-1.21%2B-00ADD8?logo=go&logoColor=white)](./go/README.md)
-[![Rust](https://img.shields.io/badge/Rust-2021-f74c00?logo=rust&logoColor=white)](./rust/README.md)
 
 </div>
 
 ---
 
-Official API clients for the [Rustbox](https://rustbox.orkait.com) cloud execution engine. Built for AI agents, judging platforms, and any tool that needs to run code it didn't write.
-
-One-line client. One method (`run`) for the 95% case.
+Four official clients for the [Rustbox](https://rustbox.sh) judge API. They share one version and one contract: [`contract/contract.json`](./contract/contract.json) fixes the constants, response shapes and error kinds, and [`contract/scenarios.json`](./contract/scenarios.json) fixes the HTTP exchanges. Every SDK replays both in its test suite, so a change in one SDK that the others lack fails CI.
 
 ## 🚀 Install
 
-```bash
-# TypeScript
-bun add rustbox
-
-# Python
-pip install rustbox
-
-# Rust
-cargo add rustbox-sdk
-
-# Go
-go get github.com/orkait/rustbox-sdk/go@v0.1.0
-```
+| SDK | Install | Package |
+|---|---|---|
+| 🐍 Python | `uv add rustbox` | [`rustbox` on PyPI](https://pypi.org/project/rustbox/) |
+| 📘 TypeScript | `bun add rustbox` | [`rustbox` on npm](https://www.npmjs.com/package/rustbox) |
+| 🦀 Rust | `cargo add rustbox-sdk` | [`rustbox-sdk` on crates.io](https://crates.io/crates/rustbox-sdk) |
+| 🦫 Go | `go get github.com/orkait/rustbox-sdk/go@v0.6.0` | [`pkg.go.dev`](https://pkg.go.dev/github.com/orkait/rustbox-sdk/go) |
 
 ## ⚡ At a glance
 
 ```python
-# Python
-client = Rustbox(api_key)
-result = await client.run(language="python", code="print(1)")
-print(result["verdict"])  # AC
+async with Rustbox(os.environ["RUSTBOX_API_KEY"]) as client:
+    execution = await client.run("python", "print(1)")
+    print(execution.result.verdict, execution.output.stdout)
 ```
 
 ```typescript
-// TypeScript
-const client = new Rustbox(apiKey);
-const result = await client.run({
-  language: "python",
-  code: "print(1)",
-});
-console.log(result.verdict);  // AC
-```
-
-```go
-// Go
-client := rustbox.New(apiKey)
-result, _ := client.Run(rustbox.SubmitRequest{
-    Language: "python",
-    Code:     "print(1)",
-})
-fmt.Println(result["verdict"])  // AC
+const client = new Rustbox(process.env.RUSTBOX_API_KEY ?? "");
+const execution = await client.run("python", "print(1)");
+console.log(execution.result.verdict, execution.output.stdout);
 ```
 
 ```rust
-// Rust
-let client = Rustbox::new(&api_key)?;
-let result = client.run(&SubmitRequest {
-    language: "python".into(),
-    code:     "print(1)".into(),
-    ..Default::default()
-}).await?;
-println!("{}", result["verdict"]);  // AC
+let client = Rustbox::new(&std::env::var("RUSTBOX_API_KEY").unwrap_or_default())?;
+let execution = client
+    .run(&RunRequest { language: "python".into(), code: "print(1)".into(), stdin: String::new() })
+    .await?;
+println!("{:?} {:?}", execution.result.verdict, execution.output.stdout);
 ```
 
-## 📚 Per-language docs
+```go
+client, err := rustbox.New(os.Getenv("RUSTBOX_API_KEY"))
+if err != nil {
+    return err
+}
+execution, err := client.Run(ctx, rustbox.RunRequest{Language: "python", Code: "print(1)"})
+```
 
-| SDK | Package | Docs |
-|---|---|---|
-| 📘 TypeScript | [`rustbox` on npm](https://www.npmjs.com/package/rustbox) | [`./typescript/README.md`](./typescript/README.md) |
-| 🐍 Python | [`rustbox` on PyPI](https://pypi.org/project/rustbox/) | [`./python/README.md`](./python/README.md) |
-| 🦫 Go | [`github.com/orkait/rustbox-sdk/go`](https://pkg.go.dev/github.com/orkait/rustbox-sdk/go) | [`./go/README.md`](./go/README.md) |
-| 🦀 Rust | [`rustbox-sdk` on crates.io](https://crates.io/crates/rustbox-sdk) | [`./rust/README.md`](./rust/README.md) |
+## 🧰 Operations
+
+Every SDK exposes the same seven operations, named in each language's style.
+
+| Operation | Python | TypeScript | Rust | Go |
+|---|---|---|---|---|
+| Queue a run, return at once | `submit` | `submit` | `submit` | `Submit` |
+| Run and wait for a terminal result | `run` | `run` | `run` | `Run` |
+| Read a run | `get_result` | `getResult` | `get_result` | `GetResult` |
+| Run code against test cases | `judge` | `judge` | `judge` | `Judge` |
+| List languages | `get_languages` | `getLanguages` | `get_languages` | `GetLanguages` |
+| Liveness and readiness | `get_health`, `get_ready` | `getHealth`, `getReady` | `get_health`, `get_ready` | `GetHealth`, `GetReady` |
+
+## 🔁 Behaviour every SDK shares
+
+| Rule | Detail |
+|---|---|
+| Retries | Reads and idempotent submits retry 5xx, timeouts and network errors twice, backing off 100 ms, 200 ms (cap 5 s). `judge` and a `submit` without an idempotency key are never retried, so a run is never executed twice |
+| `run` | Submits with a fresh `Idempotency-Key` and waits. If the server answers before the run ends, it polls (40 ms, growing 1.5x to 600 ms, 45 polls) on the region that accepted the run, until the status is `completed` or `error`. If the budget runs out it raises a timeout error, and `get_result` can pick the run up later |
+| Unknown values | A verdict, status or health value the SDK does not know decodes as `UNKNOWN` instead of failing |
+| Errors | `config`, `auth` (401/403), `rate_limit` (429, with `Retry-After` seconds), `server` (5xx after retries), `timeout`, `api` (other 4xx, with the server's message), `transport`, `decode` |
+
+## 🌍 Regions
+
+The SDKs resolve the endpoint in this order: an explicit base URL, `RUSTBOX_BASE_URL`, an explicit region, `RUSTBOX_REGION`, then automatic selection. Today there is one region, `in` (`https://api.rustbox.sh`), so nothing is probed.
+
+When more regions exist, automatic selection probes `GET /api/health` on every healthy region in parallel (1.5 s timeout), picks the fastest, and shares that pick across every client in the process for 6 hours. A region that fails a request is skipped for 5 minutes by later calls. Backends in a known location should set `RUSTBOX_REGION`, which skips probing entirely.
 
 ## 🎯 Verdicts
 
-Every result has a `verdict` field. What each one means and whether to retry:
-
-| Code | Meaning | Retry? |
-|---|---|---|
-| `AC` | Accepted - exit 0, no limits hit | n/a |
-| `RE` | Runtime error - non-zero exit (exception, syntax, etc.) | no |
-| `TLE` | Time limit exceeded | no - your code is too slow |
-| `MLE` | Memory limit exceeded | no - your code uses too much RAM |
-| `SIG` | Killed by signal - SIGSEGV / SIGKILL / OOM-killer | no |
-| `PLE` | Process limit exceeded - tried to fork beyond cap | no |
-| `FSE` | File size limit exceeded - wrote too much to disk | no |
-| `IE` | Internal error - sandbox failure on our side | yes, with backoff |
+| Code | Meaning |
+|---|---|
+| `AC` | Exited 0 within every limit |
+| `WA` | `judge` only: the output did not match the case's expected output |
+| `RE` | Exited non-zero |
+| `TLE` | Time limit exceeded |
+| `MLE` | Memory limit exceeded |
+| `OLE` | Output limit exceeded |
+| `PLE` | Process limit exceeded |
+| `FSE` | File size limit exceeded |
+| `SIG` | Killed by a signal |
+| `SV` | Security violation (reserved, not produced today) |
+| `ABUSE` | Abuse block (reserved, not produced today) |
+| `IE` | Internal error on the Rustbox side; safe to retry |
+| `TIMEOUT` | `judge` only: the case did not finish within the wait |
 
 ## 📏 Limits
 
 | Limit | Value |
 |---|---|
-| Code size | 64 KB |
-| Stdin size | 256 KB |
-| Sync wait timeout | 30s (SDK polls beyond this) |
-| Webhook delivery timeout | 10s |
-
-## 🚦 Rate limits
-
-| Profile | Per minute | Per day |
-|---|---|---|
-| Judge | 60 | 1,000 |
-| Agent | 1 | 20 |
-
-Hit a 429? Back off and retry; the SDK does this automatically up to 3 attempts. Need higher limits? See your account dashboard.
-
-## 🔒 Error handling
-
-TS and Python SDKs throw typed exceptions:
-
-| Status | TypeScript | Python |
-|---|---|---|
-| 401 / 403 | `RustboxAuthError` | `RustboxAuthError` |
-| 429 | `RustboxRateLimitError` | `RustboxRateLimitError` |
-| 5xx | `RustboxServerError` | `RustboxServerError` |
-| other | `Error` | `RustboxError` |
-
-Go and Rust currently return generic errors. See [`./ROADMAP.md`](./ROADMAP.md).
+| Code | 64 KB |
+| Stdin | 256 KB |
+| Server-side wait before `run` starts polling | 30 s |
 
 ## 🪝 Webhooks
 
-Skip polling - have Rustbox POST the result to your endpoint with an HMAC signature. See [`./WEBHOOKS.md`](./WEBHOOKS.md).
-
-## ⚙️ Base URL
-
-Every SDK points at the production endpoint by default. No configuration needed.
-
-```text
-https://rustbox.orkait.com
-```
-
-## 🛣️ Roadmap
-
-Planned features per language: [`./ROADMAP.md`](./ROADMAP.md).
+Webhooks are configured per project in the dashboard, not per request. See [`./WEBHOOKS.md`](./WEBHOOKS.md).
 
 ## 🔗 Links
 
-- 🌐 [rustbox.orkait.com](https://rustbox.orkait.com)
-- 📚 [API docs](https://rustbox.orkait.com/docs)
-- 🐛 [Issue tracker](https://github.com/orkait/rustbox-sdk/issues)
-- 🔓 [Source code](https://github.com/orkait/rustbox-sdk)
+- 🌐 [rustbox.sh](https://rustbox.sh)
+- 📚 [API docs](https://rustbox.sh/docs)
+- 🛣️ [Roadmap](./ROADMAP.md)
+- 🐛 [Issues](https://github.com/orkait/rustbox-sdk/issues)

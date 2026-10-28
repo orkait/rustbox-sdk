@@ -1,252 +1,161 @@
+from __future__ import annotations
+
 import asyncio
-import os
-import time
 import uuid
-from typing import Any, Dict, List, Literal, Optional
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
+from typing import Final
+from urllib.parse import quote
 
 import httpx
-from .errors import RustboxAuthError, RustboxRateLimitError, RustboxServerError, RustboxError, RustboxTimeoutError
 
-VERSION = "0.1.0"
+from .config import MAX_RETRIES, REGIONS, TIMEOUT_SECS, ClientConfig
+from .errors import TRANSIENT_ERRORS, RustboxConfigError, RustboxStillRunningError
+from .constants import (
+    GET,
+    HEADER_API_KEY,
+    HEADER_USER_AGENT,
+    MS_PER_SEC,
+    PATH_HEALTH,
+    PATH_JUDGE,
+    PATH_LANGUAGES,
+    PATH_READY,
+    PATH_RESULT,
+    PATH_SUBMIT,
+    POST,
+    QUERY_WAIT,
+    USER_AGENT,
+    UUID_PATTERN,
+    WAIT_FALSE,
+    WAIT_TRUE,
+)
+from .models import (
+    Accepted,
+    Execution,
+    HealthStatus,
+    JudgeBody,
+    JudgeCase,
+    JudgeResult,
+    RunBody,
+    parse_health,
+    parse_languages,
+    parse_pending_id,
+)
+from .regions import RegionSelector
+from .transport import Request, Transport, expect, json_body
 
-# Known regions. Add new entries here when a region launches; the SDK's
-# auto-probe iterates every value and picks the fastest. Module-level so
-# callers can monkey-patch in tests or for staging environments.
-REGIONS: Dict[str, str] = {
-    "eu": "https://rustbox-eu.orkait.com",
-    # us region torn down 2026-05-23; re-add when justified.
-}
-
-DEFAULT_TIMEOUT_SECS = 65.0
-DEFAULT_MAX_RETRIES = 2
-PROBE_TIMEOUT_SECS = 1.5
-PICK_CACHE_TTL_SECS = 60 * 60        # 1 h
-FAILOVER_PENALTY_SECS = 5 * 60       # 5 min
-USER_AGENT = f"rustbox-sdk-py/{VERSION}"
-
-Profile = Literal["judge", "agent"]
-
-# Module-level caches shared across instances in the same process.
-_pick_cache: Dict[str, tuple] = {}                 # regions_key -> (base, picked_at)
-_unhealthy_since: Dict[str, float] = {}            # base -> ts
-
-def _regions_key(regions: Dict[str, str]) -> str:
-    return ",".join(f"{k}={v}" for k, v in sorted(regions.items()))
+WAIT_FOR_RESULT: Final[Mapping[str, str]] = MappingProxyType({QUERY_WAIT: WAIT_TRUE})
+QUEUE_ONLY: Final[Mapping[str, str]] = MappingProxyType({QUERY_WAIT: WAIT_FALSE})
+NO_SAFE_CHARS: Final = ""
 
 
-async def _probe(base: str) -> Optional[float]:
-    start = time.monotonic()
-    try:
-        async with httpx.AsyncClient(timeout=PROBE_TIMEOUT_SECS) as c:
-            resp = await c.get(f"{base}/api/health")
-            if resp.status_code >= 400:
-                return None
-        return time.monotonic() - start
-    except Exception:
-        return None
-
-
-async def pick_fastest_region(regions: Dict[str, str] = REGIONS) -> str:
-    """Probe every region in parallel, return the fastest reachable base.
-
-    Result cached for 1h per regions-set. Falls back to the first listed
-    region if all probes fail (never raises)."""
-    key = _regions_key(regions)
-    cached = _pick_cache.get(key)
-    if cached and time.monotonic() - cached[1] < PICK_CACHE_TTL_SECS:
-        return cached[0]
-    bases = list(regions.values())
-    results = await asyncio.gather(*(_probe(b) for b in bases))
-    pairs = [(b, ms) for b, ms in zip(bases, results) if ms is not None]
-    base = min(pairs, key=lambda p: p[1])[0] if pairs else bases[0]
-    _pick_cache[key] = (base, time.monotonic())
-    return base
+def _result_path(run_id: str) -> str:
+    return PATH_RESULT.format(id=quote(run_id, safe=NO_SAFE_CHARS))
 
 
 class Rustbox:
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
         *,
-        region: Optional[str] = None,
-        regions: Optional[Dict[str, str]] = None,
-        timeout_secs: float = DEFAULT_TIMEOUT_SECS,
-        max_retries: int = DEFAULT_MAX_RETRIES,
-        failover_across_regions: bool = True,
-    ):
-        if not api_key:
-            raise ValueError("api_key required")
-        self.api_key = api_key
-        self.max_retries = max_retries
-        self.timeout_secs = timeout_secs
-        self.regions = regions or REGIONS
-        self.failover_across_regions = failover_across_regions
-
-        # Priority: explicit base_url > env baseUrl > explicit region >
-        # env RUSTBOX_REGION > deferred auto-probe.
-        explicit_base = base_url or os.environ.get("RUSTBOX_BASE_URL")
-        explicit_region = region or os.environ.get("RUSTBOX_REGION")
-        if explicit_base:
-            self._base_url: Optional[str] = explicit_base.rstrip("/")
-        elif explicit_region and explicit_region in self.regions:
-            self._base_url = self.regions[explicit_region]
-        else:
-            self._base_url = None  # resolved on first request
-
-        self.client = httpx.AsyncClient(
-            headers={
-                "X-API-Key": api_key,
-                "Content-Type": "application/json",
-                "User-Agent": USER_AGENT,
-            },
-            timeout=timeout_secs if timeout_secs > 0 else None,
+        base_url: str | None = None,
+        region: str | None = None,
+        regions: Mapping[str, str] = REGIONS,
+        timeout_secs: float = TIMEOUT_SECS,
+        max_retries: int = MAX_RETRIES,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self._config = ClientConfig.load(
+            api_key,
+            base_url=base_url,
+            region=region,
+            regions=regions,
+            timeout_secs=timeout_secs,
+            max_retries=max_retries,
         )
+        self._transport = Transport(
+            httpx.AsyncClient(
+                headers={HEADER_API_KEY: self._config.api_key, HEADER_USER_AGENT: USER_AGENT},
+                timeout=self._config.timeout_secs,
+                transport=transport,
+            ),
+            self._config.retry,
+        )
+        self._regions = RegionSelector(self._config.region, self._config.pinned_base_url, self._probe)
 
-    async def base(self) -> str:
-        if self._base_url is None:
-            self._base_url = await pick_fastest_region(self.regions)
-        return self._base_url
-
-    async def __aenter__(self) -> "Rustbox":
+    async def __aenter__(self) -> Rustbox:
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self, *exc_info: object) -> None:
         await self.aclose()
 
     async def aclose(self) -> None:
-        await self.client.aclose()
+        await self._transport.aclose()
 
-    def _handle_error(self, response: httpx.Response):
-        if response.is_success or response.status_code == 408:
-            return
-        if response.status_code in (401, 403):
-            raise RustboxAuthError("Invalid API key")
-        if response.status_code == 429:
-            raise RustboxRateLimitError("Rate limit exceeded")
-        if response.status_code >= 500:
-            raise RustboxServerError(f"Server error: {response.status_code}")
-        raise RustboxError(f"API Error: {response.status_code} - {response.text}")
+    async def base_url(self) -> str:
+        return await self._regions.current()
 
-    def _backoff_delay(self, attempt: int) -> float:
-        return min(0.1 * (2 ** attempt), 5.0)
+    async def _probe(self, base: str) -> float | None:
+        return await self._transport.probe(
+            f"{base}{PATH_HEALTH}", self._config.region.probe_timeout_ms / MS_PER_SEC
+        )
 
-    def _alternates(self, current: str) -> List[str]:
-        now = time.monotonic()
-        out = []
-        for b in self.regions.values():
-            if b == current:
-                continue
-            since = _unhealthy_since.get(b)
-            if not since or now - since > FAILOVER_PENALTY_SECS:
-                out.append(b)
-        return out
+    async def _send(self, base: str, request: Request) -> httpx.Response:
+        try:
+            return await self._transport.send(base, request)
+        except TRANSIENT_ERRORS:
+            self._regions.report_failure(base)
+            raise
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
-        current = await self.base()
-        tried: set = set()
-        last_exc: Optional[BaseException] = None
-        while True:
-            tried.add(current)
-            try:
-                return await self._request_one(current, method, path, **kwargs)
-            except (RustboxServerError, RustboxTimeoutError, httpx.NetworkError) as e:
-                last_exc = e
-                if not self.failover_across_regions:
-                    raise
-                _unhealthy_since[current] = time.monotonic()
-                # Pick a not-yet-tried alternate region.
-                next_base = next((b for b in self._alternates(current) if b not in tried), None)
-                if not next_base:
-                    raise
-                current = next_base
-                self._base_url = current
-                _pick_cache.pop(_regions_key(self.regions), None)
-
-    async def _request_one(self, base: str, method: str, path: str, **kwargs: Any) -> httpx.Response:
-        url = f"{base}{path}"
-        for attempt in range(self.max_retries + 1):
-            try:
-                resp = await self.client.request(method, url, **kwargs)
-                if resp.status_code >= 500 and attempt < self.max_retries:
-                    await asyncio.sleep(self._backoff_delay(attempt))
-                    continue
-                if resp.status_code >= 500:
-                    raise RustboxServerError(f"Server error: {resp.status_code}")
-                return resp
-            except httpx.TimeoutException as e:
-                if attempt >= self.max_retries:
-                    raise RustboxTimeoutError(str(e)) from e
-                await asyncio.sleep(self._backoff_delay(attempt))
-            except httpx.NetworkError:
-                if attempt >= self.max_retries:
-                    raise
-                await asyncio.sleep(self._backoff_delay(attempt))
-        raise RustboxError("retry exhausted")  # unreachable
+    async def _call(self, request: Request) -> httpx.Response:
+        return await self._send(await self._regions.current(), request)
 
     async def submit(
-        self,
-        language: str,
-        code: str,
-        stdin: str = "",
-        profile: Optional[Profile] = None,
-        wait: bool = False,
-        idempotency_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        body: Dict[str, Any] = {"language": language, "code": code, "stdin": stdin}
-        if profile is not None:
-            body["profile"] = profile
-        headers: Dict[str, str] = {}
-        if idempotency_key is not None:
-            headers["Idempotency-Key"] = idempotency_key
-        resp = await self._request(
-            "POST",
-            "/api/submit",
-            params={"wait": str(wait).lower()},
-            json=body,
-            headers=headers or None,
-        )
-        self._handle_error(resp)
-        return resp.json()
+        self, language: str, code: str, stdin: str = "", *, idempotency_key: str | None = None
+    ) -> Accepted:
+        if idempotency_key is not None and not UUID_PATTERN.fullmatch(idempotency_key):
+            raise RustboxConfigError(f"idempotency_key must be a UUID, got {idempotency_key!r}")
+        body = RunBody(language=language, code=code, stdin=stdin)
+        response = await self._call(Request(POST, PATH_SUBMIT, QUEUE_ONLY, body, idempotency_key))
+        return Accepted.parse(expect(response, httpx.codes.ACCEPTED))
 
-    async def get_result(self, job_id: str) -> Dict[str, Any]:
-        resp = await self._request("GET", f"/api/result/{job_id}")
-        self._handle_error(resp)
-        return resp.json()
+    async def run(self, language: str, code: str, stdin: str = "") -> Execution:
+        base = await self._regions.current()
+        body = RunBody(language=language, code=code, stdin=stdin)
+        response = await self._send(base, Request(POST, PATH_SUBMIT, WAIT_FOR_RESULT, body, str(uuid.uuid4())))
+        if response.status_code == httpx.codes.OK:
+            return Execution.parse(json_body(response))
+        pending = expect(response, httpx.codes.ACCEPTED, httpx.codes.REQUEST_TIMEOUT)
+        return await self._poll(base, parse_pending_id(pending))
 
-    async def get_languages(self) -> List[str]:
-        resp = await self._request("GET", "/api/languages")
-        self._handle_error(resp)
-        return resp.json()
+    async def _poll(self, base: str, run_id: str) -> Execution:
+        for delay_secs in self._config.poll.delays_secs():
+            await asyncio.sleep(delay_secs)
+            execution = await self._fetch(base, run_id)
+            if execution.done:
+                return execution
+        raise RustboxStillRunningError(run_id)
 
-    async def get_health(self) -> Dict[str, Any]:
-        resp = await self._request("GET", "/api/health")
-        self._handle_error(resp)
-        return resp.json()
+    async def _fetch(self, base: str, run_id: str) -> Execution:
+        response = await self._send(base, Request(GET, _result_path(run_id)))
+        return Execution.parse(expect(response, httpx.codes.OK))
 
-    async def get_ready(self) -> Dict[str, Any]:
-        resp = await self._request("GET", "/api/health/ready")
-        self._handle_error(resp)
-        return resp.json()
+    async def get_result(self, run_id: str) -> Execution:
+        return await self._fetch(await self._regions.current(), run_id)
 
-    async def run(
-        self,
-        language: str,
-        code: str,
-        stdin: str = "",
-        profile: Optional[Profile] = None,
-    ) -> Dict[str, Any]:
-        res = await self.submit(
-            language, code, stdin,
-            profile=profile, wait=True, idempotency_key=str(uuid.uuid4()),
-        )
-        if res.get("verdict"):
-            return res
+    async def judge(self, language: str, code: str, cases: Sequence[JudgeCase]) -> JudgeResult:
+        body = JudgeBody(language=language, code=code, cases=[case.to_json() for case in cases])
+        response = await self._call(Request(POST, PATH_JUDGE, body=body))
+        return JudgeResult.parse(expect(response, httpx.codes.OK))
 
-        job_id = res["id"]
-        for i in range(45):
-            await asyncio.sleep(min(0.04 * (1.5 ** i), 0.6))
-            data = await self.get_result(job_id)
-            if data.get("verdict"):
-                return data
-        return res
+    async def get_languages(self) -> list[str]:
+        response = await self._call(Request(GET, PATH_LANGUAGES))
+        return parse_languages(expect(response, httpx.codes.OK))
+
+    async def get_health(self) -> HealthStatus:
+        response = await self._call(Request(GET, PATH_HEALTH))
+        return parse_health(expect(response, httpx.codes.OK))
+
+    async def get_ready(self) -> HealthStatus:
+        response = await self._call(Request(GET, PATH_READY))
+        return parse_health(expect(response, httpx.codes.OK))

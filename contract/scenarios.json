@@ -1,0 +1,365 @@
+{
+  "scenarios": [
+    {
+      "name": "submit queues a run without waiting",
+      "call": { "op": "submit", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "false" }, "idempotency_key": "absent", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 202, "shape": "queued", "body": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "pending", "queue_depth": 0 } }
+        }
+      ],
+      "expect": { "accepted": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "pending" } }
+    },
+    {
+      "name": "submit sends the caller's idempotency key",
+      "call": { "op": "submit", "language": "python", "code": "print(1)", "stdin": "", "idempotency_key": "6a0e7c1d-2b3f-4a5e-8d9c-0b1a2c3d4e5f" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "false" }, "idempotency_key": "6a0e7c1d-2b3f-4a5e-8d9c-0b1a2c3d4e5f", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 202, "shape": "queued", "body": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "running" } }
+        }
+      ],
+      "expect": { "accepted": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "running" } }
+    },
+    {
+      "name": "submit refuses an idempotency key that is not a UUID",
+      "call": { "op": "submit", "language": "python", "code": "print(1)", "stdin": "", "idempotency_key": "order-42" },
+      "exchanges": [],
+      "expect": { "error": { "kind": "config" } }
+    },
+    {
+      "name": "run returns the result of a sync submit",
+      "call": { "op": "run", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "true" }, "idempotency_key": "uuid", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "completed",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": "2026-10-29T10:00:00.040+00:00" },
+            "result": { "verdict": "AC", "cause": "normal_exit", "actor": "runtime", "exit_code": 0, "signal": null, "error_message": null },
+            "output": { "stdout": "1\n", "stderr": "", "integrity": "complete" },
+            "metrics": { "cpu_time_secs": 0.021, "wall_time_secs": 0.03, "memory_peak_bytes": 4378624, "cpu_wall_ratio": 0.7, "divergence": null },
+            "evidence": { "isolation": { "mode": "strict" }, "limits": { "cgroup_backend": "cgroup_v2" }, "teardown": { "cleanup_verified": true } }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "completed", "verdict": "AC", "stdout": "1\n", "exit_code": 0 } }
+    },
+    {
+      "name": "run polls when the sync wait times out",
+      "call": { "op": "run", "language": "python", "code": "while True: pass", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "true" }, "idempotency_key": "uuid", "body": { "language": "python", "code": "while True: pass", "stdin": "" } },
+          "response": { "status": 408, "shape": "timed_out", "body": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "error": "execution did not complete within 30s, poll GET /api/result/{id}" } }
+        },
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "running",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": null },
+            "result": { "verdict": null, "cause": null, "actor": null, "exit_code": null, "signal": null, "error_message": null },
+            "output": { "stdout": null, "stderr": null, "integrity": null },
+            "metrics": { "cpu_time_secs": null, "wall_time_secs": null, "memory_peak_bytes": null, "cpu_wall_ratio": null, "divergence": null }
+          } }
+        },
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "completed",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": "2026-10-29T10:00:02.010+00:00" },
+            "result": { "verdict": "TLE", "cause": "tle", "actor": "kernel", "exit_code": null, "signal": 9, "error_message": null },
+            "output": { "stdout": "", "stderr": "", "integrity": "complete" },
+            "metrics": { "cpu_time_secs": 2.0, "wall_time_secs": 2.0, "memory_peak_bytes": 3145728, "cpu_wall_ratio": 1.0, "divergence": "cpu_bound" }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "completed", "verdict": "TLE", "stdout": "", "exit_code": null } }
+    },
+    {
+      "name": "run stops polling at a terminal status even without a verdict",
+      "call": { "op": "run", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "true" }, "idempotency_key": "uuid", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 408, "shape": "timed_out", "body": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "error": "execution did not complete within 30s, poll GET /api/result/{id}" } }
+        },
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "error",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": "2026-10-29T10:00:00.050+00:00" },
+            "result": { "verdict": null, "cause": null, "actor": null, "exit_code": null, "signal": null, "error_message": "internal error during execution" },
+            "output": { "stdout": null, "stderr": null, "integrity": null },
+            "metrics": { "cpu_time_secs": null, "wall_time_secs": null, "memory_peak_bytes": null, "cpu_wall_ratio": null, "divergence": null }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "error", "verdict": null, "stdout": null, "exit_code": null } }
+    },
+    {
+      "name": "run hands back the run id when the polling budget runs out",
+      "call": { "op": "run", "language": "python", "code": "while True: pass", "stdin": "" },
+      "exchanges": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/submit",
+            "query": { "wait": "true" },
+            "idempotency_key": "uuid",
+            "body": { "language": "python", "code": "while True: pass", "stdin": "" }
+          },
+          "response": {
+            "status": 408,
+            "shape": "timed_out",
+            "body": {
+              "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c",
+              "error": "execution did not complete within 30s, poll GET /api/result/{id}"
+            }
+          }
+        },
+        {
+          "times": 45,
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": {
+            "status": 200,
+            "shape": "result",
+            "body": {
+              "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c",
+              "schema_version": "2.0",
+              "language": "python",
+              "profile": "judge",
+              "status": "running",
+              "timestamps": {
+                "created_at": "2026-10-29T10:00:00+00:00",
+                "started_at": "2026-10-29T10:00:00.010+00:00",
+                "completed_at": null
+              },
+              "result": {
+                "verdict": null,
+                "cause": null,
+                "actor": null,
+                "exit_code": null,
+                "signal": null,
+                "error_message": null
+              },
+              "output": { "stdout": null, "stderr": null, "integrity": null },
+              "metrics": {
+                "cpu_time_secs": null,
+                "wall_time_secs": null,
+                "memory_peak_bytes": null,
+                "cpu_wall_ratio": null,
+                "divergence": null
+              }
+            }
+          }
+        }
+      ],
+      "expect": { "error": { "kind": "still_running", "run_id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" } }
+    },
+    {
+      "name": "get_result escapes the run id into one path segment",
+      "call": { "op": "get_result", "id": "run/1?x" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/result/run%2F1%3Fx" }, "response": { "status": 404, "shape": "error", "body": { "error": "submission not found" } } }
+      ],
+      "expect": { "error": { "kind": "api", "status": 404, "message": "submission not found" } }
+    },
+    {
+      "name": "run polls after an idempotent replay",
+      "call": { "op": "run", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "true" }, "idempotency_key": "uuid", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 202, "shape": "queued", "body": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "completed" } }
+        },
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "completed",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": "2026-10-29T10:00:00.040+00:00" },
+            "result": { "verdict": "AC", "cause": "normal_exit", "actor": "runtime", "exit_code": 0, "signal": null, "error_message": null },
+            "output": { "stdout": "1\n", "stderr": "", "integrity": "complete" },
+            "metrics": { "cpu_time_secs": 0.021, "wall_time_secs": 0.03, "memory_peak_bytes": 4378624, "cpu_wall_ratio": 0.7, "divergence": null }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "completed", "verdict": "AC", "stdout": "1\n", "exit_code": 0 } }
+    },
+    {
+      "name": "run retries a failed submit with the same idempotency key",
+      "call": { "op": "run", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "true" }, "idempotency_key": "uuid", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 503, "shape": "error", "body": { "error": "queue full" } }
+        },
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "true" }, "idempotency_key": "repeat", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "completed",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": "2026-10-29T10:00:00.040+00:00" },
+            "result": { "verdict": "AC", "cause": "normal_exit", "actor": "runtime", "exit_code": 0, "signal": null, "error_message": null },
+            "output": { "stdout": "1\n", "stderr": "", "integrity": "complete" },
+            "metrics": { "cpu_time_secs": 0.021, "wall_time_secs": 0.03, "memory_peak_bytes": 4378624, "cpu_wall_ratio": 0.7, "divergence": null }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "completed", "verdict": "AC", "stdout": "1\n", "exit_code": 0 } }
+    },
+    {
+      "name": "get_result decodes unknown verdicts and statuses as UNKNOWN",
+      "call": { "op": "get_result", "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+      "exchanges": [
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "archived",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": "2026-10-29T10:00:00.010+00:00", "completed_at": "2026-10-29T10:00:00.040+00:00" },
+            "result": { "verdict": "NEWVERDICT", "cause": "normal_exit", "actor": "runtime", "exit_code": 0, "signal": null, "error_message": null },
+            "output": { "stdout": "1\n", "stderr": "", "integrity": "complete" },
+            "metrics": { "cpu_time_secs": 0.021, "wall_time_secs": 0.03, "memory_peak_bytes": 4378624, "cpu_wall_ratio": 0.7, "divergence": null }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "UNKNOWN", "verdict": "UNKNOWN", "stdout": "1\n", "exit_code": 0 } }
+    },
+    {
+      "name": "judge returns one result per case",
+      "call": { "op": "judge", "language": "python", "code": "a, b = map(int, input().split())\nprint(a + b)", "cases": [ { "stdin": "1 2", "expected": "3" }, { "stdin": "2 2", "expected": "5" } ] },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/judge", "idempotency_key": "absent", "body": { "language": "python", "code": "a, b = map(int, input().split())\nprint(a + b)", "cases": [ { "stdin": "1 2", "expected": "3" }, { "stdin": "2 2", "expected": "5" } ] } },
+          "response": { "status": 200, "shape": "judge", "body": {
+            "results": [
+              { "verdict": "AC", "passed": true, "stdout": "3\n", "stderr": "", "expected": "3", "exit_code": 0, "wall_time_secs": 0.02 },
+              { "verdict": "WA", "passed": false, "stdout": "4\n", "stderr": "", "expected": "5", "exit_code": 0, "wall_time_secs": 0.02 }
+            ],
+            "all_passed": false
+          } }
+        }
+      ],
+      "expect": { "judge": { "all_passed": false, "verdicts": ["AC", "WA"], "passed": [true, false] } }
+    },
+    {
+      "name": "judge is never retried",
+      "call": { "op": "judge", "language": "python", "code": "print(3)", "cases": [ { "stdin": "", "expected": "3" } ] },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/judge", "idempotency_key": "absent", "body": { "language": "python", "code": "print(3)", "cases": [ { "stdin": "", "expected": "3" } ] } },
+          "response": { "status": 503, "shape": "error", "body": { "error": "queue full" } }
+        }
+      ],
+      "expect": { "error": { "kind": "server", "status": 503 } }
+    },
+    {
+      "name": "submit without an idempotency key is never retried",
+      "call": { "op": "submit", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "false" }, "idempotency_key": "absent", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 502, "shape": "error", "body": { "error": "bad gateway" } }
+        }
+      ],
+      "expect": { "error": { "kind": "server", "status": 502 } }
+    },
+    {
+      "name": "reads are retried on server errors",
+      "call": { "op": "get_result", "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+      "exchanges": [
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 502, "shape": "error", "body": { "error": "bad gateway" } }
+        },
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 503, "shape": "error", "body": { "error": "unavailable" } }
+        },
+        {
+          "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+          "response": { "status": 200, "shape": "result", "body": {
+            "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "schema_version": "2.0", "language": "python", "profile": "judge", "status": "pending",
+            "timestamps": { "created_at": "2026-10-29T10:00:00+00:00", "started_at": null, "completed_at": null },
+            "result": { "verdict": null, "cause": null, "actor": null, "exit_code": null, "signal": null, "error_message": null },
+            "output": { "stdout": null, "stderr": null, "integrity": null },
+            "metrics": { "cpu_time_secs": null, "wall_time_secs": null, "memory_peak_bytes": null, "cpu_wall_ratio": null, "divergence": null }
+          } }
+        }
+      ],
+      "expect": { "result": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c", "status": "pending", "verdict": null, "stdout": null, "exit_code": null } }
+    },
+    {
+      "name": "reads give up after the retry budget",
+      "call": { "op": "get_result", "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" }, "response": { "status": 503, "shape": "error", "body": { "error": "unavailable" } } },
+        { "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" }, "response": { "status": 503, "shape": "error", "body": { "error": "unavailable" } } },
+        { "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" }, "response": { "status": 503, "shape": "error", "body": { "error": "unavailable" } } }
+      ],
+      "expect": { "error": { "kind": "server", "status": 503 } }
+    },
+    {
+      "name": "languages lists the server's languages",
+      "call": { "op": "languages" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/languages" }, "response": { "status": 200, "shape": "languages", "body": ["c", "cpp", "python"] } }
+      ],
+      "expect": { "languages": ["c", "cpp", "python"] }
+    },
+    {
+      "name": "health reports ok",
+      "call": { "op": "health" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/health" }, "response": { "status": 200, "shape": "health", "body": { "status": "ok" } } }
+      ],
+      "expect": { "health": "ok" }
+    },
+    {
+      "name": "ready reports ready",
+      "call": { "op": "ready" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/health/ready" }, "response": { "status": 200, "shape": "health", "body": { "status": "ready" } } }
+      ],
+      "expect": { "health": "ready" }
+    },
+    {
+      "name": "a rejected key is an auth error",
+      "call": { "op": "get_result", "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" }, "response": { "status": 401, "shape": "error", "body": { "error": "invalid or missing API key" } } }
+      ],
+      "expect": { "error": { "kind": "auth", "status": 401 } }
+    },
+    {
+      "name": "a rate limit carries Retry-After",
+      "call": { "op": "submit", "language": "python", "code": "print(1)", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "false" }, "idempotency_key": "absent", "body": { "language": "python", "code": "print(1)", "stdin": "" } },
+          "response": { "status": 429, "headers": { "Retry-After": "5" }, "shape": "error", "body": { "error": "too many in-flight sync submissions" } }
+        }
+      ],
+      "expect": { "error": { "kind": "rate_limit", "status": 429, "retry_after_secs": 5 } }
+    },
+    {
+      "name": "an API error carries the server's message",
+      "call": { "op": "submit", "language": "cobol", "code": "DISPLAY 1.", "stdin": "" },
+      "exchanges": [
+        {
+          "request": { "method": "POST", "path": "/api/submit", "query": { "wait": "false" }, "idempotency_key": "absent", "body": { "language": "cobol", "code": "DISPLAY 1.", "stdin": "" } },
+          "response": { "status": 400, "shape": "error", "body": { "error": "unsupported language: cobol" } }
+        }
+      ],
+      "expect": { "error": { "kind": "api", "status": 400, "message": "unsupported language: cobol" } }
+    },
+    {
+      "name": "a body of the wrong shape is a decode error",
+      "call": { "op": "get_result", "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" },
+      "exchanges": [
+        { "request": { "method": "GET", "path": "/api/result/3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" }, "response": { "status": 200, "body": { "id": "3f1c2a9e-8b4d-4e2a-9c1f-5d6e7f8a9b0c" } } }
+      ],
+      "expect": { "error": { "kind": "decode" } }
+    }
+  ]
+}

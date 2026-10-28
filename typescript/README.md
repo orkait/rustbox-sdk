@@ -1,106 +1,97 @@
 <div align="center">
 
-# 📘 Rustbox TypeScript SDK
+# 📘 rustbox for TypeScript
 
-[![npm version](https://img.shields.io/npm/v/rustbox?logo=npm&color=cb3837)](https://www.npmjs.com/package/rustbox)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+**Client for the Rustbox judge API, for Node 20+ and Bun.**
+
+[![npm](https://img.shields.io/npm/v/rustbox?logo=npm&logoColor=white)](https://www.npmjs.com/package/rustbox)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](./tsconfig.json)
 
 </div>
 
-Native `fetch`. Zero runtime deps. Full type defs.
+---
 
-## 🚀 Install
+`rustbox` runs untrusted code on Rustbox and returns typed results. It uses the platform `fetch` and has no runtime dependencies. Behaviour shared with the other SDKs (retries, regions, verdicts) is described in the [SDK index](../README.md).
+
+## 🚀 Quickstart
 
 ```bash
-bun add rustbox        # or: npm install rustbox / pnpm add rustbox
+bun add rustbox
 ```
-
-## ⚡ Quickstart
 
 ```typescript
 import { Rustbox } from "rustbox";
 
-const result = await new Rustbox(process.env.RUSTBOX_API_KEY!).run({
-  language: "python",
-  code: "print('hello')",
-});
-console.log(result.verdict, result.stdout);  // AC hello
+const client = new Rustbox(process.env.RUSTBOX_API_KEY ?? "");
+const execution = await client.run("python", "print(6 * 7)");
+if (execution.result.verdict === "AC") console.log(execution.output.stdout);
 ```
 
-`run()` submits, waits for sync completion, polls if needed, returns the verdict.
-
-### Profiles
+## ⚖️ Judge against test cases
 
 ```typescript
-// Judge profile (default) - short evaluation runs, no egress proxy.
-await client.run({ language: "python", code: "print(1)" });
-
-// Agent profile - longer jobs, egress proxy on, per-key byte budget.
-// Requires a non-trial API key.
-await client.run({ language: "python", code: "...", profile: "agent" });
+const judged = await client.judge("python", "a, b = map(int, input().split())\nprint(a + b)", [
+  { stdin: "1 2", expected: "3" },
+  { stdin: "2 2", expected: "4" },
+]);
+console.log(judged.allPassed, judged.results.map((r) => r.verdict));
 ```
+
+## 📨 Queue now, read later
+
+```typescript
+const accepted = await client.submit("python", "print(1)", "", crypto.randomUUID());
+const execution = await client.getResult(accepted.id);
+```
+
+A `submit` with an idempotency key is retried on transient failures; without one it is sent once.
+
+## ⚙️ Configuration
+
+Options are a full `RustboxOptions` object; start from `DEFAULT_OPTIONS` and override what you need.
+
+```typescript
+import { DEFAULT_OPTIONS, Rustbox } from "rustbox";
+
+const client = new Rustbox(apiKey, { ...DEFAULT_OPTIONS, region: "in", maxRetries: 0 });
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `baseUrl` | `ABSENT` | Fixed endpoint; wins over everything else |
+| `region` | `ABSENT` | A key of `regions`; `RUSTBOX_REGION` is read when unset |
+| `regions` | `{ in: "https://api.rustbox.sh" }` | Region table |
+| `timeoutSecs` | `65` | Per-request timeout |
+| `maxRetries` | `2` | Retries for reads and idempotent submits |
+
+`RUSTBOX_BASE_URL` and `RUSTBOX_REGION` are the only environment variables read, and only where `process` exists.
+
+## 🧾 Results
+
+`run` and `getResult` return an `Execution`: `id`, `language`, `status`, `done`, `timestamps`, `result` (`verdict`, `exitCode`, `signal`, `errorMessage`), `output` (`stdout`, `stderr`), `metrics` (`cpuTimeSecs`, `wallTimeSecs`, `memoryPeakBytes`) and `evidence`. Missing values are `ABSENT` (`null`).
 
 ## 🔒 Errors
 
-```ts
-import { RustboxAuthError, RustboxRateLimitError, RustboxServerError } from "rustbox";
+Every error extends `RustboxError`.
 
-try { await client.run({ language: "python", code: "..." }); }
-catch (e) {
-  if (e instanceof RustboxAuthError)      { /* 401/403 */ }
-  if (e instanceof RustboxRateLimitError) { /* 429 - back off */ }
-  if (e instanceof RustboxServerError)    { /* 5xx - retry */ }
-}
-```
-
-<details>
-<summary><strong>🧰 Full API</strong></summary>
-
-| Method | Returns |
+| Error | When |
 |---|---|
-| `new Rustbox(apiKey, opts?)` | `Rustbox` |
-| `run(req)` | `Promise<SubmitResponse>` |
-| `submit(req, wait?, opts?)` | `Promise<SubmitResponse>` |
-| `getResult(id)` | `Promise<SubmitResponse>` |
-| `getLanguages()` | `Promise<string[]>` |
-| `getHealth()` | `Promise<any>` |
-| `getReady()` | `Promise<any>` |
+| `RustboxConfigError` | Missing key, bad URL or unknown region |
+| `RustboxAuthError` | 401 / 403 (`.status`) |
+| `RustboxRateLimitError` | 429 (`.retryAfterSecs`) |
+| `RustboxServerError` | 5xx after retries (`.status`) |
+| `RustboxApiError` | Other 4xx (`.status`, `.detail`) |
+| `RustboxTimeoutError` | A request timed out |
+| `RustboxStillRunningError` | `run` used up its polling budget; `runId` is the run to fetch later with `getResult` |
+| `RustboxTransportError` | The service could not be reached |
+| `RustboxDecodeError` | The response did not match the contract |
 
-```ts
-type SubmitRequest = {
-  language: string;
-  code: string;
-  stdin?: string;
-  profile?: "judge" | "agent";
-};
-
-type RustboxOptions = {
-  baseUrl?: string;     // default: https://rustbox.orkait.com
-  timeoutMs?: number;   // default: 65_000
-  maxRetries?: number;  // default: 2
-};
-
-type SubmitOptions = {
-  idempotencyKey?: string;  // safe to retry POST when set
-};
-```
-
-</details>
-
-<details>
-<summary><strong>🧪 Tests</strong></summary>
+## 🧪 Development
 
 ```bash
-cd typescript && bun install && bun run test
+bun install
+bun run typecheck
+bun test
 ```
 
-`vitest` + mocked `fetch`. No network.
-
-</details>
-
-## 🔗
-
-- 📦 [npm: rustbox](https://www.npmjs.com/package/rustbox)
-- 🪝 [Webhooks](../WEBHOOKS.md)
-- 🛣️ [Roadmap](../ROADMAP.md)
-- 🦀 [SDK index](../README.md)
+The tests replay [`../contract`](../contract), shared with the other SDKs.

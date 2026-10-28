@@ -1,26 +1,11 @@
 # 🛣️ SDK Roadmap
 
-Tracks the gaps each SDK has today. Open an issue at [`orkait/rustbox-sdk#issues`](https://github.com/orkait/rustbox-sdk/issues) if you need one of these sooner.
+What the SDKs do not do yet. Open an issue at [`orkait/rustbox-sdk`](https://github.com/orkait/rustbox-sdk/issues) if you need one of these sooner. Anything added lands in all four SDKs at once, through [`contract/`](./contract).
 
-## Coming soon
-
-| Feature | Status | Lang | Why |
-|---|---|---|---|
-| Typed errors | planned | go, rust | Today these return generic `error` / `Result<_, String>`. TS + Python already typed (`RustboxAuthError`, `RustboxRateLimitError`, `RustboxServerError`). |
-| Streaming stdout/stderr | exploring | all | For long-running jobs, surface output line-by-line instead of one final blob. Server-side support not built yet. |
-| Cancel / abort | exploring | all | `client.cancel(id)` to terminate an in-flight job. Server endpoint TBD. |
-| Synchronous wrappers | not planned | python | The SDK is async-only by design. Wrap with `asyncio.run()` from sync code. |
-| Browser usage | not planned | typescript | Direct browser submission would expose API keys. Use a server proxy. |
-
-## Published packages
-
-| SDK | Registry |
-|---|---|
-| TypeScript | [npm](https://www.npmjs.com/package/rustbox) |
-| Python | [PyPI](https://pypi.org/project/rustbox/) |
-| Go | [pkg.go.dev](https://pkg.go.dev/github.com/orkait/rustbox-sdk/go) |
-| Rust | [crates.io](https://crates.io/crates/rustbox-sdk) |
-
-## SDK source
-
-The source code for all SDKs is available at [`orkait/rustbox-sdk`](https://github.com/orkait/rustbox-sdk). Issues and feature requests are tracked on the [issue tracker](https://github.com/orkait/rustbox-sdk/issues).
+| Feature | Status | Why |
+|---|---|---|
+| Receipts and `/api/verify` | not in the SDKs | The judge API serves them; the SDKs will add them when the contract does |
+| Streaming stdout and stderr | exploring | Needs server-side support first |
+| Cancel a run | exploring | Needs a server endpoint first |
+| Synchronous Python client | not planned | The Python SDK is async; wrap calls in `asyncio.run()` |
+| Browser use of the TypeScript SDK | not planned | It would expose the API key; call it from a server |

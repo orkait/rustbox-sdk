@@ -1,0 +1,154 @@
+{
+  "version": "0.6.0",
+  "user_agent": "rustbox-sdk-{lang}/{version}",
+  "regions": {
+    "in": "https://api.rustbox.sh"
+  },
+  "default_region": "in",
+  "region_selection": {
+    "probe_path": "/api/health",
+    "probe_timeout_ms": 1500,
+    "cache_ttl_secs": 21600,
+    "failover_penalty_secs": 300
+  },
+  "env": {
+    "base_url": "RUSTBOX_BASE_URL",
+    "region": "RUSTBOX_REGION"
+  },
+  "headers": {
+    "api_key": "X-API-Key",
+    "user_agent": "User-Agent",
+    "idempotency_key": "Idempotency-Key",
+    "retry_after": "Retry-After"
+  },
+  "timeout_secs": 65,
+  "retry": {
+    "max_retries": 2,
+    "backoff_base_ms": 100,
+    "backoff_cap_ms": 5000
+  },
+  "poll": {
+    "max_polls": 45,
+    "first_delay_ms": 40,
+    "growth": 1.5,
+    "cap_ms": 600
+  },
+  "paths": {
+    "submit": "/api/submit",
+    "result": "/api/result/{id}",
+    "judge": "/api/judge",
+    "languages": "/api/languages",
+    "health": "/api/health",
+    "ready": "/api/health/ready"
+  },
+  "operations": ["submit", "run", "get_result", "judge", "languages", "health", "ready"],
+  "verdicts": ["AC", "WA", "RE", "TLE", "MLE", "OLE", "PLE", "FSE", "SIG", "SV", "ABUSE", "IE", "TIMEOUT"],
+  "statuses": ["pending", "running", "completed", "error"],
+  "terminal_statuses": ["completed", "error"],
+  "health_statuses": ["ok", "ready", "not_ready"],
+  "unknown": "UNKNOWN",
+  "errors": ["config", "auth", "rate_limit", "server", "timeout", "still_running", "api", "transport", "decode"],
+  "shapes": {
+    "error": {
+      "required": ["error"],
+      "optional": ["hint"]
+    },
+    "timed_out": {
+      "required": ["id", "error"],
+      "optional": []
+    },
+    "queued": {
+      "required": ["id", "status"],
+      "optional": ["queue_depth"]
+    },
+    "result": {
+      "required": ["id", "schema_version", "language", "profile", "status", "timestamps", "result", "output", "metrics"],
+      "optional": ["evidence", "artifacts", "artifacts_truncated"],
+      "blocks": {
+        "timestamps": ["created_at", "started_at", "completed_at"],
+        "result": ["verdict", "cause", "actor", "exit_code", "signal", "error_message"],
+        "output": ["stdout", "stderr", "integrity"],
+        "metrics": ["cpu_time_secs", "wall_time_secs", "memory_peak_bytes", "cpu_wall_ratio", "divergence"]
+      }
+    },
+    "judge": {
+      "required": ["results", "all_passed"],
+      "optional": []
+    },
+    "judge_case": {
+      "required": ["verdict", "passed", "stdout", "stderr", "expected", "exit_code", "wall_time_secs"],
+      "optional": []
+    },
+    "health": {
+      "required": ["status"],
+      "optional": []
+    }
+  },
+  "region_cases": [
+    {
+      "name": "auto selection probes every region once and caches the fastest for the process",
+      "pin": null,
+      "regions": {
+        "a": { "health": { "status": 200, "delay_ms": 300 }, "languages": { "status": 200, "body": ["a"] } },
+        "b": { "health": { "status": 200, "delay_ms": 0 }, "languages": { "status": 200, "body": ["b"] } }
+      },
+      "expect": [ { "languages": ["b"] }, { "languages": ["b"] } ],
+      "calls": { "a": { "health": 1, "languages": 0 }, "b": { "health": 1, "languages": 2 } }
+    },
+    {
+      "name": "a region that fails its probe is not picked",
+      "pin": null,
+      "regions": {
+        "a": { "health": { "status": 503, "delay_ms": 0 }, "languages": { "status": 200, "body": ["a"] } },
+        "b": { "health": { "status": 200, "delay_ms": 100 }, "languages": { "status": 200, "body": ["b"] } }
+      },
+      "expect": [ { "languages": ["b"] } ],
+      "calls": { "a": { "health": 1, "languages": 0 }, "b": { "health": 1, "languages": 1 } }
+    },
+    {
+      "name": "a failing region is penalised and the next call moves away from it",
+      "pin": null,
+      "regions": {
+        "a": { "health": { "status": 200, "delay_ms": 0 }, "languages": { "status": 503, "body": { "error": "unavailable" } } },
+        "b": { "health": { "status": 200, "delay_ms": 200 }, "languages": { "status": 200, "body": ["b"] } }
+      },
+      "expect": [ { "error": { "kind": "server", "status": 503 } }, { "languages": ["b"] } ],
+      "calls": { "a": { "health": 1, "languages": 3 }, "b": { "health": 1, "languages": 1 } }
+    },
+    {
+      "name": "a pinned region is never probed and never abandoned",
+      "pin": "a",
+      "regions": {
+        "a": { "health": { "status": 200, "delay_ms": 0 }, "languages": { "status": 503, "body": { "error": "unavailable" } } },
+        "b": { "health": { "status": 200, "delay_ms": 0 }, "languages": { "status": 200, "body": ["b"] } }
+      },
+      "expect": [ { "error": { "kind": "server", "status": 503 } }, { "error": { "kind": "server", "status": 503 } } ],
+      "calls": { "a": { "health": 0, "languages": 6 }, "b": { "health": 0, "languages": 0 } }
+    }
+  ],
+  "config_cases": [
+    { "name": "defaults are valid", "api_key": "k" },
+    { "name": "zero retries are valid", "api_key": "k", "max_retries": 0 },
+    { "name": "an empty api key", "api_key": "", "expect_error": "config" },
+    { "name": "an api key with a trailing newline", "api_key": "rb_live_key\n", "expect_error": "config" },
+    { "name": "an api key with a space", "api_key": "rb live key", "expect_error": "config" },
+    { "name": "negative retries", "api_key": "k", "max_retries": -1, "expect_error": "config" },
+    { "name": "a zero timeout", "api_key": "k", "timeout_secs": 0, "expect_error": "config" },
+    { "name": "no regions", "api_key": "k", "regions": {}, "expect_error": "config" },
+    { "name": "a region url without http or https", "api_key": "k", "regions": { "in": "api.rustbox.sh" }, "expect_error": "config" }
+  ],
+  "resolution": [
+    { "name": "default region", "expect": "https://api.rustbox.sh" },
+    { "name": "explicit region", "region": "in", "expect": "https://api.rustbox.sh" },
+    { "name": "env region", "env_region": "in", "expect": "https://api.rustbox.sh" },
+    { "name": "explicit region beats env region", "region": "in", "env_region": "zz", "expect": "https://api.rustbox.sh" },
+    { "name": "env base url beats region", "env_base_url": "https://env.example.test", "region": "in", "expect": "https://env.example.test" },
+    { "name": "explicit base url beats everything", "base_url": "https://staging.example.test/", "env_base_url": "https://env.example.test", "region": "in", "expect": "https://staging.example.test" },
+    { "name": "empty env values are unset", "env_base_url": "", "env_region": "", "expect": "https://api.rustbox.sh" },
+    { "name": "unknown region", "region": "eu", "expect_error": "config" },
+    { "name": "unknown env region", "env_region": "eu", "expect_error": "config" },
+    { "name": "empty base url", "base_url": "", "expect_error": "config" },
+    { "name": "a base url without http or https", "base_url": "staging.example.test", "expect_error": "config" },
+    { "name": "an env base url without http or https", "env_base_url": "staging.example.test", "expect_error": "config" }
+  ]
+}

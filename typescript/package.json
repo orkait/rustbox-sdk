@@ -1,16 +1,15 @@
 {
   "name": "rustbox",
-  "version": "0.1.0",
-  "description": "Official TypeScript SDK for Rustbox - run untrusted code in a kernel-enforced sandbox.",
+  "version": "0.6.0",
+  "description": "Official TypeScript SDK for the Rustbox judge API - run and judge untrusted code in a kernel-enforced sandbox.",
   "keywords": [
     "rustbox",
-    "sandbox",
+    "judge",
     "code-execution",
     "untrusted-code",
-    "judge",
-    "agent"
+    "sandbox"
   ],
-  "homepage": "https://rustbox.orkait.com",
+  "homepage": "https://rustbox.sh/docs/sdks/typescript",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/orkait/rustbox-sdk.git",
@@ -29,15 +28,17 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=19"
+    "node": ">=20"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "prepublishOnly": "bun run build"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "bun test",
+    "prepublishOnly": "bun run typecheck && bun run build"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "@types/bun": "^1.2.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
   }
 }

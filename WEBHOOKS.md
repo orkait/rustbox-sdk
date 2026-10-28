@@ -23,7 +23,7 @@ webhook-id: <message id>
 webhook-timestamp: <unix timestamp>
 webhook-signature: v1,<base64 hmac-sha256>
 
-{ "id": "...", "verdict": "AC", "stdout": "...", "stderr": "...", ... }
+{ "id": "...", "schema_version": "2.0", "status": "completed", "result": { "verdict": "AC", ... }, "output": { "stdout": "...", "stderr": "...", "integrity": "complete" }, "metrics": { ... }, "evidence": { ... } }
 ```
 
 Rustbox follows the Standard Webhooks signing shape:
@@ -45,4 +45,4 @@ Verify the signature with the secret shown at creation or after rotation.
 ## See also
 
 - [`./README.md`](./README.md) - SDK index
-- [API docs](https://rustbox.orkait.com/docs/api/webhooks) - full HTTP contract
+- [API docs](https://rustbox.sh/docs/api/webhooks) - full HTTP contract

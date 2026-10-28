@@ -1,39 +1,40 @@
 [project]
 name = "rustbox"
-version = "0.1.0"
-description = "Official Python SDK for Rustbox - run untrusted code in a kernel-enforced sandbox."
+version = "0.6.0"
+description = "Official Python SDK for the Rustbox judge API - run and judge untrusted code in a kernel-enforced sandbox."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Orkait", email = "engineering@orkait.com" }]
-keywords = ["rustbox", "sandbox", "code-execution", "untrusted-code", "judge", "agent"]
+keywords = ["rustbox", "judge", "code-execution", "untrusted-code", "sandbox"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Framework :: AsyncIO",
+    "Typing :: Typed",
 ]
 dependencies = [
     "httpx>=0.27.0,<1.0.0",
 ]
 
 [project.urls]
-Homepage = "https://rustbox.orkait.com"
-Documentation = "https://rustbox.orkait.com/docs"
+Homepage = "https://rustbox.sh"
+Documentation = "https://rustbox.sh/docs/sdks/python"
 Repository = "https://github.com/orkait/rustbox-sdk"
 Issues = "https://github.com/orkait/rustbox-sdk/issues"
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.13",
     "pytest>=8.0",
-    "pytest-asyncio>=0.23.0",
-    "respx>=0.21.1",
+    "pytest-asyncio>=0.24",
 ]
 
 [build-system]
@@ -42,3 +43,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rustbox"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.mypy]
+strict = true

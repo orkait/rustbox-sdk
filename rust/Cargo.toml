@@ -1,14 +1,14 @@
 [package]
 name = "rustbox-sdk"
-version = "0.1.0"
+version = "0.6.0"
 edition = "2021"
-rust-version = "1.70"
-description = "Official Rust SDK for Rustbox - run untrusted code in a kernel-enforced sandbox."
+rust-version = "1.82"
+description = "Official Rust SDK for the Rustbox judge API - run and judge untrusted code in a kernel-enforced sandbox."
 license = "MIT"
-homepage = "https://rustbox.orkait.com"
+homepage = "https://rustbox.sh/docs/sdks/rust"
 repository = "https://github.com/orkait/rustbox-sdk"
 documentation = "https://docs.rs/rustbox-sdk"
-keywords = ["rustbox", "sandbox", "code-execution", "judge", "agent"]
+keywords = ["rustbox", "judge", "sandbox", "code-execution"]
 categories = ["api-bindings", "asynchronous", "development-tools"]
 readme = "README.md"
 include = ["src/**/*.rs", "README.md", "LICENSE"]
@@ -16,11 +16,12 @@ include = ["src/**/*.rs", "README.md", "LICENSE"]
 [workspace]
 
 [dependencies]
+futures-util = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "sync"] }
 uuid = { version = "1.20.0", features = ["v4"] }
 
 [dev-dependencies]

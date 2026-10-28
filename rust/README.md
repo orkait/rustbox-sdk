@@ -1,122 +1,101 @@
 <div align="center">
 
-# 🦀 Rustbox Rust SDK
+# 🦀 rustbox-sdk for Rust
 
-[![Crates.io](https://img.shields.io/crates/v/rustbox-sdk?logo=rust&color=f74c00)](https://crates.io/crates/rustbox-sdk)
-[![docs.rs](https://img.shields.io/docsrs/rustbox-sdk?logo=docsdotrs)](https://docs.rs/rustbox-sdk)
+**Async client for the Rustbox judge API, on tokio and reqwest.**
+
+[![crates.io](https://img.shields.io/crates/v/rustbox-sdk?logo=rust&logoColor=white)](https://crates.io/crates/rustbox-sdk)
+[![docs.rs](https://img.shields.io/docsrs/rustbox-sdk?logo=docs.rs)](https://docs.rs/rustbox-sdk)
+[![MSRV](https://img.shields.io/badge/MSRV-1.82-f74c00?logo=rust&logoColor=white)](./Cargo.toml)
 
 </div>
 
-Async via `tokio` + `reqwest`. Builder-style configuration. Typed errors via `thiserror`.
+---
 
-## 🚀 Install
+`rustbox-sdk` runs untrusted code on Rustbox and returns typed results. Behaviour shared with the other SDKs (retries, regions, verdicts) is described in the [SDK index](../README.md).
+
+## 🚀 Quickstart
 
 ```bash
-cargo add rustbox-sdk tokio --features tokio/macros,tokio/rt-multi-thread
+cargo add rustbox-sdk
+cargo add tokio --features macros,rt-multi-thread
 ```
 
-## ⚡ Quickstart
-
 ```rust
-use rustbox_sdk::{Rustbox, SubmitRequest};
+use rustbox_sdk::{RunRequest, Rustbox, Verdict};
 
 #[tokio::main]
-async fn main() -> Result<(), rustbox_sdk::RustboxError> {
-    let client = Rustbox::new(&std::env::var("RUSTBOX_API_KEY").unwrap())?;
-    let result = client.run(&SubmitRequest {
-        language: "python".into(),
-        code:     "print('hello')".into(),
-        ..Default::default()
-    }).await?;
-    println!("{} {}", result["verdict"], result["stdout"]);  // AC hello
+async fn main() -> rustbox_sdk::Result<()> {
+    let client = Rustbox::new(&std::env::var("RUSTBOX_API_KEY").unwrap_or_default())?;
+    let execution = client
+        .run(&RunRequest {
+            language: "python".into(),
+            code: "print(6 * 7)".into(),
+            stdin: String::new(),
+        })
+        .await?;
+    if execution.result.verdict == Some(Verdict::Accepted) {
+        println!("{:?}", execution.output.stdout);
+    }
     Ok(())
 }
 ```
 
-`run()` submits, waits for sync completion, polls if needed, returns the verdict.
-
-### Profiles
+## ⚖️ Judge against test cases
 
 ```rust
-use rustbox_sdk::{Profile, SubmitRequest};
+use rustbox_sdk::{JudgeCase, JudgeRequest};
 
-// Judge profile (default) - short evaluation runs, no egress proxy.
-client.run(&SubmitRequest {
-    language: "python".into(),
-    code: "print(1)".into(),
-    ..Default::default()
-}).await?;
-
-// Agent profile - longer jobs, egress proxy on, per-key byte budget.
-// Requires a non-trial API key.
-client.run(&SubmitRequest {
-    language: "python".into(),
-    code: "...".into(),
-    profile: Some(Profile::Agent),
-    ..Default::default()
-}).await?;
+let judged = client
+    .judge(&JudgeRequest {
+        language: "python".into(),
+        code: "a, b = map(int, input().split())\nprint(a + b)".into(),
+        cases: vec![
+            JudgeCase { stdin: "1 2".into(), expected: "3".into() },
+            JudgeCase { stdin: "2 2".into(), expected: "4".into() },
+        ],
+    })
+    .await?;
+println!("{}", judged.all_passed);
 ```
+
+## 📨 Queue now, read later
+
+```rust
+let accepted = client.submit(&run, Some("6a0e7c1d-2b3f-4a5e-8d9c-0b1a2c3d4e5f")).await?;
+let execution = client.get_result(&accepted.id).await?;
+```
+
+A `submit` with an idempotency key is retried on transient failures; with `None` it is sent once.
+
+## ⚙️ Configuration
+
+```rust
+use rustbox_sdk::{Options, Rustbox};
+
+let client = Rustbox::with_options(&api_key, Options { region: Some("in".into()), ..Options::default() })?;
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `base_url` | `None` | Fixed endpoint; wins over everything else |
+| `region` | `None` | A key of `regions`; `RUSTBOX_REGION` is read when unset |
+| `regions` | `{"in": "https://api.rustbox.sh"}` | Region table |
+| `timeout` | 65 s | Per-request timeout |
+| `max_retries` | 2 | Retries for reads and idempotent submits |
+
+`RUSTBOX_BASE_URL` and `RUSTBOX_REGION` are the only environment variables read. `ClientConfig::load` takes the environment as a function, for callers that want to control it.
 
 ## 🔒 Errors
 
-```rust
-use rustbox_sdk::RustboxError;
+`RustboxError` has one variant per kind: `Config`, `Auth { status }`, `RateLimit { retry_after_secs }`, `Server { status }`, `Timeout`, `StillRunning { run_id }` (when `run` uses up its polling budget; fetch `run_id` later with `get_result`), `Api { status, message }`, `Transport` and `Decode`. `status()` returns the HTTP status where there is one.
 
-match client.run(&req).await {
-    Ok(result) => { /* result["verdict"] */ }
-    Err(RustboxError::Auth(_))    => { /* 401/403 - check api_key */ }
-    Err(RustboxError::RateLimit)  => { /* 429 - back off */ }
-    Err(RustboxError::Server(_))  => { /* 5xx - SDK already retried */ }
-    Err(RustboxError::Timeout)    => { /* request exceeded timeout */ }
-    Err(e)                        => { /* Transport, Decode, Api, ... */ }
-}
-```
-
-<details>
-<summary><strong>🧰 Full API</strong></summary>
-
-| Method | Returns |
-|---|---|
-| `Rustbox::new(api_key)` | `Result<Rustbox, RustboxError>` |
-| `.with_base_url(url)` | `Result<Rustbox, RustboxError>` (builder) |
-| `.with_timeout(d)` | `Result<Rustbox, RustboxError>` (builder) |
-| `.with_max_retries(n)` | `Rustbox` (builder) |
-| `client.run(&req).await` | `Result<Value, RustboxError>` |
-| `client.submit(&req, wait, opts).await` | `Result<Value, RustboxError>` |
-| `client.get_result(id).await` | `Result<Value, RustboxError>` |
-| `client.get_languages().await` | `Result<Vec<String>, RustboxError>` |
-| `client.get_health().await` | `Result<Value, RustboxError>` |
-| `client.get_ready().await` | `Result<Value, RustboxError>` |
-
-```rust
-pub struct SubmitRequest {
-    pub language: String,
-    pub code: String,
-    pub stdin: String,
-    pub profile: Option<Profile>,         // judge | agent
-}
-// Implements Default - use `..Default::default()` to omit optionals.
-```
-
-`Value` is `serde_json::Value`. Pull fields with `result["verdict"]` or `serde_json::from_value` into your own struct.
-
-</details>
-
-<details>
-<summary><strong>🧪 Tests</strong></summary>
+## 🧪 Development
 
 ```bash
-cd rust && cargo test
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
 ```
 
-`wiremock` mocks. No network.
-
-</details>
-
-## 🔗
-
-- 📦 [crates.io: rustbox-sdk](https://crates.io/crates/rustbox-sdk)
-- 📚 [docs.rs](https://docs.rs/rustbox-sdk)
-- 🪝 [Webhooks](../WEBHOOKS.md)
-- 🛣️ [Roadmap](../ROADMAP.md)
-- 🦀 [SDK index](../README.md)
+The tests replay [`../contract`](../contract), shared with the other SDKs.
